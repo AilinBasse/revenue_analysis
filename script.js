@@ -19,7 +19,7 @@
      Metabase → open question → Share icon → Public link tab
      Copy iframe src, replace http://localhost:3000 with METABASE_BASE.
 ------------------------------------------------------------------- */
-const METABASE_BASE = 'https://oversweet-epidermal-spoon.ngrok-free.dev/'; // ← change when ngrok restarts
+const METABASE_BASE = 'https://oversweet-epidermal-spoon.ngrok-free.dev'; // ← change when ngrok restarts (no trailing slash)
 
 const EMBEDS = {
   totalRevenue: `${METABASE_BASE}/public/question/cbb20f4a-672c-4000-8c14-7f3b53e81013`,
