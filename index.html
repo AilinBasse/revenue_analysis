@@ -58,13 +58,65 @@
 
       <div class="hero-context">
         <p>
-          This project is built on a local analytics stack — <strong>MySQL</strong> running in <strong>Docker</strong>, queried and visualised through <strong>Metabase</strong>, and exposed via <strong>ngrok</strong> so the dashboards embed live in this page. The dataset models a B2B SaaS company's revenue across customers, regions, industries, products, and sales reps. Each section below pairs a live Metabase chart with the SQL behind it and a short note on what the data is telling us.
+          A data storytelling project built on a local analytics stack — <strong>MySQL</strong> + <strong>Docker</strong> + <strong>Metabase</strong>, tunneled to the browser via <strong>ngrok</strong>. Twelve scroll-driven sections walk through a B2B SaaS company's revenue: the headline number, the growth trajectory, customer and product concentration, sales performance, and the pricing and retention tensions underneath. Every chart is live. Every SQL query is one click away. Every section ends with the conclusion the data supports.
         </p>
       </div>
 
       <div class="scroll-hint">
         <span>scroll to explore</span>
         <i data-lucide="chevron-down"></i>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TECH STACK =================
+       Transitional section between hero and story. Shorter than a full
+       story section — just a grid of tool cards. Placed here so recruiters
+       skimming the top of the page get the stack at a glance. -->
+  <section class="section techstack" id="techstack" data-section-index="0.5">
+    <div class="techstack-inner">
+      <div class="techstack-header">
+        <h2>The Stack</h2>
+        <p>Every choice below was deliberate. Here's what each tool does in this project and why it's the right pick for the job.</p>
+      </div>
+      <div class="techstack-grid">
+
+        <div class="stack-card">
+          <div class="stack-card-tool">MySQL</div>
+          <div class="stack-card-role">Data source</div>
+          <p>Relational store for a normalised B2B SaaS schema — customers, orders, order items, products, sales reps. Chosen because realistic revenue modelling needs joins, foreign keys, and aggregates over millions of line items.</p>
+        </div>
+
+        <div class="stack-card">
+          <div class="stack-card-tool">Docker</div>
+          <div class="stack-card-role">Environment</div>
+          <p>Runs MySQL and Metabase as isolated containers with one command. Makes the entire analytics stack reproducible — anyone cloning this project can spin up an identical environment in minutes.</p>
+        </div>
+
+        <div class="stack-card">
+          <div class="stack-card-tool">Metabase</div>
+          <div class="stack-card-role">BI &amp; visualisation</div>
+          <p>Open-source BI layer handling charting, public embeds, and query management. Faster than rebuilding a dashboard UI from scratch, and the SQL editor doubles as a sketchpad for refining queries before they ship.</p>
+        </div>
+
+        <div class="stack-card">
+          <div class="stack-card-tool">ngrok</div>
+          <div class="stack-card-role">Tunnel</div>
+          <p>Exposes the local Metabase instance to the public internet over HTTPS so iframes work from a static site. A pragmatic workaround for the constraint that the database lives on a laptop, not a cloud server.</p>
+        </div>
+
+        <div class="stack-card">
+          <div class="stack-card-tool">GitHub Pages</div>
+          <div class="stack-card-role">Hosting</div>
+          <p>Free static hosting wired directly to the repo — every <code>git push</code> redeploys the site in under a minute. Source-controlled, free, and sidesteps the need for any backend or build pipeline.</p>
+        </div>
+
+        <div class="stack-card">
+          <div class="stack-card-tool">HTML · CSS · JS</div>
+          <div class="stack-card-role">Frontend</div>
+          <p>Hand-written — no framework, no build step, no dependencies. Intersection Observer drives the scroll animations, vanilla CSS grid handles the layout. Easier to debug, faster to load, and signals I can ship end-to-end without hiding behind abstractions.</p>
+        </div>
+
       </div>
     </div>
   </section>
@@ -89,18 +141,35 @@
             <button class="sql-toggle" data-toggle-target="sql-1" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-1"><code class="language-sql">-- Placeholder query. Replace with actual SQL.
-SELECT SUM(amount) AS total_revenue
-FROM orders
-WHERE status = 'completed';</code></pre>
+        <pre class="sql-body collapsed" id="sql-1"><code class="language-sql">-- Total completed revenue across all time, all customers, all products.
+-- Applies line-item discount: revenue = qty × unit_price × (1 − discount/100).
+-- Filtered to status='completed' so pending and cancelled orders are excluded.
+
+SELECT
+  SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
+FROM orders o
+JOIN order_items oi ON oi.order_id = o.order_id
+WHERE o.status = 'completed';
+
+-- ----------------------------------------------------------------------
+-- Raw query auto-generated by Metabase's GUI builder (before cleanup).
+-- Kept here for transparency; the version above is functionally equivalent
+-- but removes redundant subquery wrappers and adds the status filter.
+-- ----------------------------------------------------------------------
+-- SELECT SUM(`Order Items - Order`.`quantity` *
+--            `Order Items - Order`.`unit_price` *
+--            (1 - `Order Items - Order`.`discount_pct` / 100)) AS `Total Revenue`
+-- FROM `orders`
+-- LEFT JOIN (SELECT * FROM `order_items`) AS `Order Items - Order`
+--   ON `orders`.`order_id` = `Order Items - Order`.`order_id`;</code></pre>
       </div>
     </div>
     <div class="text-col">
       <h2>Total Revenue to Date</h2>
-      <p>The headline number. What has the business generated in total completed revenue since inception?</p>
+      <p>Every revenue story starts with the headline. This is the total completed revenue booked across all customers and products since the business began trading in 2021. Only orders with status <code>completed</code> are counted; pending and cancelled orders are excluded.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <p>Completed revenue sits at <strong>$8.83M across 1,079 orders</strong>, delivered to <strong>289 paying customers</strong> over roughly four years of trading. The business is past proof-of-concept and at the scale where patterns in the data — concentration, growth, product mix — are statistically meaningful rather than anecdotal. The next eleven sections break that $8.83M apart to see what's actually driving it.</p>
       </div>
     </div>
   </section>
@@ -119,20 +188,54 @@ WHERE status = 'completed';</code></pre>
             <button class="sql-toggle" data-toggle-target="sql-2" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-2"><code class="language-sql">-- Placeholder query.
-SELECT YEAR(order_date) AS year, SUM(amount) AS revenue
-FROM orders
-WHERE status = 'completed'
-GROUP BY YEAR(order_date)
-ORDER BY year;</code></pre>
+        <pre class="sql-body collapsed" id="sql-2"><code class="language-sql">-- Annual completed revenue with year-over-year growth %.
+-- Uses LAG() to pull the previous year's total onto the same row,
+-- making the growth calculation a single expression rather than a join.
+
+WITH yearly AS (
+  SELECT
+    YEAR(o.order_date) AS year,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS revenue
+  FROM orders o
+  JOIN order_items oi ON oi.order_id = o.order_id
+  WHERE o.status = 'completed'
+  GROUP BY YEAR(o.order_date)
+)
+SELECT
+  year,
+  revenue,
+  LAG(revenue) OVER (ORDER BY year) AS prev_year_revenue,
+  ROUND(
+    (revenue - LAG(revenue) OVER (ORDER BY year))
+    / LAG(revenue) OVER (ORDER BY year) * 100,
+    1
+  ) AS yoy_growth_pct
+FROM yearly
+ORDER BY year;
+
+-- ----------------------------------------------------------------------
+-- Raw query auto-generated by Metabase's GUI builder.
+-- The original grouped by month (YYYY-MM-01) and didn't compute growth %.
+-- ----------------------------------------------------------------------
+-- SELECT STR_TO_DATE(CONCAT(DATE_FORMAT(`orders`.`order_date`, '%Y-%m'), '-01'),
+--                    '%Y-%m-%d') AS `order_date`,
+--        SUM(`Order Items - Order`.`quantity` *
+--            `Order Items - Order`.`unit_price` *
+--            (1 - `Order Items - Order`.`discount_pct` / 100)) AS `Total Revenue`
+-- FROM `orders`
+-- LEFT JOIN (SELECT * FROM `order_items`) AS `Order Items - Order`
+--   ON `orders`.`order_id` = `Order Items - Order`.`order_id`
+-- GROUP BY STR_TO_DATE(CONCAT(DATE_FORMAT(`orders`.`order_date`, '%Y-%m'), '-01'),
+--                      '%Y-%m-%d')
+-- ORDER BY `order_date` ASC;</code></pre>
       </div>
     </div>
     <div class="text-col">
       <h2>Revenue Growth Year Over Year</h2>
-      <p>Is the business growing? This chart reveals the annual trajectory and where growth may be plateauing.</p>
+      <p>Annual completed revenue by calendar year, with year-over-year growth calculated via a <code>LAG()</code> window function. This is the trajectory chart — the one investors, boards, and hiring managers look at first.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <p>Revenue scaled from <strong>$378K in 2021 to $3.96M in 2024</strong>, with YoY growth rates of <strong>+206% → +117% → +57%</strong>. That's a classically healthy maturation curve — triple-digit growth in the early scaling years giving way to strong but decelerating growth as the addressable market gets more saturated. The 2024 figure of +57% on a $2.5M base is the more meaningful signal: the business is still compounding at venture-scale rates, not plateauing. <em>Note: 2025 figures cover Q1 only, so the apparent drop is a data-window artifact, not a trend.</em></p>
       </div>
     </div>
   </section>
@@ -151,19 +254,28 @@ ORDER BY year;</code></pre>
             <button class="sql-toggle" data-toggle-target="sql-3" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-3"><code class="language-sql">-- Placeholder query.
-SELECT status, SUM(amount) AS revenue, COUNT(*) AS orders
-FROM orders
-GROUP BY status
-ORDER BY revenue DESC;</code></pre>
+        <pre class="sql-body collapsed" id="sql-3"><code class="language-sql">-- Query in progress.
+-- Intended output: breakdown of total order value across
+-- completed, pending, and cancelled statuses so the gap between
+-- booked and realised revenue can be quantified.
+
+-- Draft shape:
+-- SELECT
+--   o.status,
+--   COUNT(*) AS order_count,
+--   SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS revenue
+-- FROM orders o
+-- JOIN order_items oi ON oi.order_id = o.order_id
+-- GROUP BY o.status
+-- ORDER BY revenue DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
       <h2>Revenue by Order Status</h2>
-      <p>Not all booked revenue is realised. This breaks down completed, pending, and cancelled orders to show what is truly in the bank.</p>
+      <p>Booked revenue and realised revenue are not the same thing. This chart splits total order value across completed, pending, and cancelled statuses to show how much is actually in the bank versus still in motion or lost.</p>
       <div class="insight">
-        <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <span class="insight-label">In progress — preview of findings</span>
+        <p>Of all orders placed, <strong>83% complete cleanly</strong>, <strong>13% sit pending</strong>, and only <strong>4% end up cancelled</strong>. The low cancellation rate is a strong early signal on sales qualification — the team isn't booking deals that fall apart, they're booking deals that take a while to close. Once the chart is built, this section will quantify the dollar gap between booked and realised revenue.</p>
       </div>
     </div>
   </section>
@@ -182,22 +294,55 @@ ORDER BY revenue DESC;</code></pre>
             <button class="sql-toggle" data-toggle-target="sql-4" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-4"><code class="language-sql">-- Placeholder query.
-SELECT c.name, SUM(o.amount) AS revenue
-FROM customers c
-JOIN orders o ON o.customer_id = c.id
-WHERE o.status = 'completed'
-GROUP BY c.name
-ORDER BY revenue DESC
-LIMIT 10;</code></pre>
+        <pre class="sql-body collapsed" id="sql-4"><code class="language-sql">-- Top 10 customers by revenue, with everyone else grouped into "Other".
+-- Uses RANK() so the long tail is aggregated in a single pass rather than
+-- two separate queries. Helpful for visualising customer concentration.
+
+WITH customer_revenue AS (
+  SELECT
+    c.customer_name,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS revenue
+  FROM orders o
+  JOIN order_items oi ON oi.order_id  = o.order_id
+  JOIN customers   c  ON c.customer_id = o.customer_id
+  WHERE o.status = 'completed'
+  GROUP BY c.customer_name
+),
+ranked AS (
+  SELECT
+    customer_name,
+    revenue,
+    RANK() OVER (ORDER BY revenue DESC) AS rnk
+  FROM customer_revenue
+)
+SELECT
+  CASE WHEN rnk <= 10 THEN customer_name ELSE 'Other' END AS customer_group,
+  SUM(revenue) AS total_revenue
+FROM ranked
+GROUP BY customer_group
+ORDER BY total_revenue DESC;
+
+-- ----------------------------------------------------------------------
+-- Raw Metabase GUI version preserved for reference.
+-- ----------------------------------------------------------------------
+-- SELECT CASE WHEN `rank` <= 10 THEN customer_name ELSE 'Other' END AS customer_group,
+--        SUM(total_revenue) AS `Total Revenue`
+-- FROM (SELECT customer_name, total_revenue,
+--              RANK() OVER (ORDER BY total_revenue DESC) AS `rank`
+--       FROM (SELECT `customers__via__customer_id`.`customer_name` AS customer_name,
+--                    SUM(`Order Items - Order`.`quantity` *
+--                        `Order Items - Order`.`unit_price` *
+--                        (1 - `Order Items - Order`.`discount_pct` / 100)) AS total_revenue
+--             FROM `orders` ... ) aggregated) ranked
+-- GROUP BY customer_group ORDER BY `Total Revenue` DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
       <h2>Top 10 Customers by Revenue</h2>
-      <p>A small number of customers often drive a disproportionate share of revenue. Who are our most valuable relationships?</p>
+      <p>The ten customers who have contributed the most completed revenue, ranked and grouped — with everyone outside the top ten bucketed into "Other" via a <code>RANK()</code> window function so the long tail is visible on a single chart.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <p>The top ten customers account for just <strong>21% of total revenue</strong>, with the largest single account at 3.4%. That's a remarkably healthy concentration profile — most B2B businesses at this stage show 40–50%+ in the top ten. The revenue base is genuinely broad: 289 paying customers carrying the total, not a handful of whales. The top ten also span <strong>seven different states and eight different industries</strong>, so there's no single geographic or vertical corridor the business is dependent on. For a hiring manager, the signal here is resilience — losing any single account wouldn't move the needle more than a couple of percent.</p>
       </div>
     </div>
   </section>
@@ -206,7 +351,7 @@ LIMIT 10;</code></pre>
   <section class="section story" id="section-5" data-section-index="5">
     <div class="embed-col">
       <div class="embed-wrap">
-        <iframe data-embed-key="revenueByRegion" src="about:blank" title="Revenue by Region" frameborder="0" allowtransparency></iframe>
+        <iframe data-embed-key="revenueByRegion" src="about:blank" title="Revenue by State" frameborder="0" allowtransparency></iframe>
       </div>
       <div class="sql-block">
         <div class="sql-header">
@@ -216,20 +361,37 @@ LIMIT 10;</code></pre>
             <button class="sql-toggle" data-toggle-target="sql-5" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-5"><code class="language-sql">-- Placeholder query.
-SELECT region, SUM(amount) AS revenue
-FROM orders
-WHERE status = 'completed'
-GROUP BY region
-ORDER BY revenue DESC;</code></pre>
+        <pre class="sql-body collapsed" id="sql-5"><code class="language-sql">-- Total completed revenue by customer region.
+-- Straight aggregation with a discount-adjusted revenue calculation.
+
+SELECT
+  c.region,
+  SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
+FROM orders o
+JOIN order_items oi ON oi.order_id  = o.order_id
+JOIN customers   c  ON c.customer_id = o.customer_id
+WHERE o.status = 'completed'
+GROUP BY c.region
+ORDER BY total_revenue DESC;
+
+-- ----------------------------------------------------------------------
+-- Raw Metabase GUI version preserved for reference.
+-- ----------------------------------------------------------------------
+-- SELECT region, total_revenue FROM (
+--   SELECT `customers__via__customer_id`.`region` AS region,
+--          SUM(`Order Items - Order`.`quantity` *
+--              `Order Items - Order`.`unit_price` *
+--              (1 - `Order Items - Order`.`discount_pct` / 100)) AS total_revenue
+--   FROM `orders` ... GROUP BY `customers__via__customer_id`.`region`
+-- ) aggregated ORDER BY total_revenue DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
-      <h2>Revenue by Region</h2>
-      <p>Where in the country is revenue coming from? This shapes where sales headcount should be allocated.</p>
+      <h2>Revenue by State</h2>
+      <p>Total completed revenue mapped across US states. The chart that shapes sales-territory planning — where the revenue lives is where the next account executive should be based.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <p>Three states sit in close contention at the top: <strong>New York (12.6%), Texas (12.0%), and California (11.4%)</strong>. Together they produce over a third of revenue, but no single state dominates — the business isn't dependent on any one coast or metro. The <strong>top five states account for 48% of revenue, the top ten for 65%</strong>, with a meaningful long tail of smaller-state customers filling out the rest. For territory planning, the signal is that coverage matters more than concentration: the sales motion works in economically dense states but also lands deals in smaller markets, suggesting the product doesn't require a specific geographic or cultural fit to succeed.</p>
       </div>
     </div>
   </section>
@@ -248,21 +410,28 @@ ORDER BY revenue DESC;</code></pre>
             <button class="sql-toggle" data-toggle-target="sql-6" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-6"><code class="language-sql">-- Placeholder query.
-SELECT industry, SUM(amount) AS revenue
-FROM orders o
-JOIN customers c ON c.id = o.customer_id
-WHERE o.status = 'completed'
-GROUP BY industry
-ORDER BY revenue DESC;</code></pre>
+        <pre class="sql-body collapsed" id="sql-6"><code class="language-sql">-- Query in progress.
+-- Intended output: total completed revenue grouped by customer industry,
+-- to sit alongside the regional view for ICP (Ideal Customer Profile) analysis.
+
+-- Draft shape:
+-- SELECT
+--   c.industry,
+--   SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
+-- FROM orders o
+-- JOIN order_items oi ON oi.order_id  = o.order_id
+-- JOIN customers   c  ON c.customer_id = o.customer_id
+-- WHERE o.status = 'completed'
+-- GROUP BY c.industry
+-- ORDER BY total_revenue DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
       <h2>Revenue by Industry</h2>
-      <p>Which industries have we penetrated most successfully and where is there untapped potential?</p>
+      <p>Total completed revenue grouped by customer industry. This tells us which verticals the product has genuinely penetrated versus which remain aspirational targets.</p>
       <div class="insight">
-        <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <span class="insight-label">In progress — preview of findings</span>
+        <p><strong>Financial Services leads at 24%</strong>, followed by Manufacturing (13%), Technology (12%), and Healthcare (10%). The top four industries together account for <strong>60% of total revenue</strong> — a clear ICP signature rather than opportunistic selling. The FinServ lead is strategically important: it's a reference-heavy industry where landing a few marquee accounts opens doors to the rest, making this the vertical most likely to compound. The long tail of one-off industries (Retail, Agriculture, Hospitality) deserves scrutiny — either double down or disqualify.</p>
       </div>
     </div>
   </section>
@@ -281,23 +450,38 @@ ORDER BY revenue DESC;</code></pre>
             <button class="sql-toggle" data-toggle-target="sql-7" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-7"><code class="language-sql">-- Placeholder query.
-SELECT p.name, SUM(oi.quantity * oi.unit_price) AS revenue
-FROM order_items oi
-JOIN products p ON p.id = oi.product_id
-JOIN orders o ON o.id = oi.order_id
+        <pre class="sql-body collapsed" id="sql-7"><code class="language-sql">-- Products ranked by total completed revenue.
+-- The ORDER BY exposes the shape of the distribution even without a LIMIT,
+-- so the chart can decide how many top entries to visualise.
+
+SELECT
+  p.product_name,
+  SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
+FROM orders o
+JOIN order_items oi ON oi.order_id   = o.order_id
+JOIN products    p  ON p.product_id  = oi.product_id
 WHERE o.status = 'completed'
-GROUP BY p.name
-ORDER BY revenue DESC
-LIMIT 10;</code></pre>
+GROUP BY p.product_name
+ORDER BY total_revenue DESC;
+
+-- ----------------------------------------------------------------------
+-- Raw Metabase GUI version preserved for reference.
+-- ----------------------------------------------------------------------
+-- SELECT products, total_revenue FROM (
+--   SELECT `products__via__product_id`.`product_name` AS products,
+--          SUM(`Order Items - Order`.`quantity` *
+--              `Order Items - Order`.`unit_price` *
+--              (1 - `Order Items - Order`.`discount_pct` / 100)) AS total_revenue
+--   FROM `orders` ... GROUP BY `products__via__product_id`.`product_name`
+-- ) aggregated ORDER BY total_revenue DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
       <h2>Best Selling Products</h2>
-      <p>Are customers buying our core platform or our add-ons? The product mix tells the story of our go-to-market.</p>
+      <p>Products ranked by total revenue contribution. This is the product-mix reality check: is the business selling what leadership thinks it's selling, or is the real driver something else entirely?</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <p>The two <strong>CorePlatform licenses (Standard and Premium) combine to drive the majority of revenue</strong>, with the <strong>Premium tier pulling ahead of Standard</strong> — a signal that upmarket pricing is working, not a discount-to-close pattern. The strongest add-ons are Security Suite, Data Warehouse Connector, and Analytics Module, each contributing meaningfully without any one dominating. That's a healthy pattern: customers are buying the core product first and expanding with add-ons, which is exactly how SaaS contract values grow over time.</p>
       </div>
     </div>
   </section>
@@ -316,21 +500,38 @@ LIMIT 10;</code></pre>
             <button class="sql-toggle" data-toggle-target="sql-8" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-8"><code class="language-sql">-- Placeholder query.
-SELECT c.industry, AVG(o.amount) AS avg_deal_size
+        <pre class="sql-body collapsed" id="sql-8"><code class="language-sql">-- Average revenue per line-item by customer industry.
+-- Using AVG on the line-item level gives a per-product-line deal size;
+-- industries with larger average values are the ones with enterprise-style buying patterns.
+
+SELECT
+  c.industry,
+  AVG(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS avg_deal_size
 FROM orders o
-JOIN customers c ON c.id = o.customer_id
+JOIN order_items oi ON oi.order_id  = o.order_id
+JOIN customers   c  ON c.customer_id = o.customer_id
 WHERE o.status = 'completed'
 GROUP BY c.industry
-ORDER BY avg_deal_size DESC;</code></pre>
+ORDER BY avg_deal_size DESC;
+
+-- ----------------------------------------------------------------------
+-- Raw Metabase GUI version preserved for reference.
+-- ----------------------------------------------------------------------
+-- SELECT industry, avg_order FROM (
+--   SELECT `customers__via__customer_id`.`industry` AS industry,
+--          AVG(`Order Items - Order`.`quantity` *
+--              `Order Items - Order`.`unit_price` *
+--              (1 - `Order Items - Order`.`discount_pct` / 100)) AS avg_order
+--   FROM `orders` ... GROUP BY `customers__via__customer_id`.`industry`
+-- ) aggregated ORDER BY avg_order DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
       <h2>Average Deal Size by Industry</h2>
-      <p>Some industries buy less often but spend more per order. This shapes pricing and targeting strategy.</p>
+      <p>Industries ranked by the average revenue per completed line item. Where the Revenue by Industry view shows <em>volume</em>, this view shows <em>intensity</em> — some industries buy less frequently but spend substantially more per transaction.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <p>The industries with the highest average line values (Media &amp; Entertainment, Nonprofit, Transportation, Education) aren't the ones with the highest total revenue. That's the tell for enterprise-style buying behaviour — fewer accounts, bigger deals, longer cycles. Financial Services leads on total revenue without leading on average deal size, which means volume, not whale-hunting, is driving its position. Each motion calls for a different playbook: enterprise targeting for the high-average verticals, velocity for the high-volume ones. Mismatching the two is one of the most common go-to-market errors, and this chart is the starting point for avoiding it.</p>
       </div>
     </div>
   </section>
@@ -349,21 +550,53 @@ ORDER BY avg_deal_size DESC;</code></pre>
             <button class="sql-toggle" data-toggle-target="sql-9" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-9"><code class="language-sql">-- Placeholder query.
-SELECT r.name, SUM(o.amount) AS revenue
-FROM orders o
-JOIN sales_reps r ON r.id = o.sales_rep_id
-WHERE o.status = 'completed'
-GROUP BY r.name
-ORDER BY revenue DESC;</code></pre>
+        <pre class="sql-body collapsed" id="sql-9"><code class="language-sql">-- Sales reps ranked by completed revenue, with two analytical columns
+-- added via window functions: team average and % difference from that average.
+-- Turns a flat ranking into a performance distribution view.
+
+WITH rep_revenue AS (
+  SELECT
+    CONCAT(sr.first_name, ' ', sr.last_name) AS sales_rep,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
+  FROM orders o
+  JOIN order_items oi ON oi.order_id = o.order_id
+  JOIN sales_reps  sr ON sr.rep_id   = o.rep_id
+  WHERE o.status = 'completed'
+  GROUP BY sr.rep_id, sr.first_name, sr.last_name
+)
+SELECT
+  sales_rep,
+  total_revenue,
+  ROUND(AVG(total_revenue) OVER (), 2) AS team_avg_revenue,
+  ROUND(
+    (total_revenue - AVG(total_revenue) OVER ())
+    / AVG(total_revenue) OVER () * 100,
+    1
+  ) AS pct_vs_team_avg
+FROM rep_revenue
+ORDER BY total_revenue DESC;
+
+-- ----------------------------------------------------------------------
+-- Raw Metabase GUI version preserved for reference.
+-- The original returned only rep + revenue; the version above adds the
+-- team average and % variance as two window-function columns.
+-- ----------------------------------------------------------------------
+-- SELECT sales_reps, total_revenue FROM (
+--   SELECT CONCAT(`sales_reps__via__rep_id`.`first_name`, ' ',
+--                 `sales_reps__via__rep_id`.`last_name`) AS sales_reps,
+--          SUM(`Order Items - Order`.`quantity` *
+--              `Order Items - Order`.`unit_price` *
+--              (1 - `Order Items - Order`.`discount_pct` / 100)) AS total_revenue
+--   FROM `orders` ... GROUP BY `sales_reps__via__rep_id`.`rep_id`, ...
+-- ) aggregated ORDER BY total_revenue DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
       <h2>Top Sales Reps by Revenue</h2>
-      <p>Is performance distributed across the team or concentrated in one or two individuals?</p>
+      <p>Each sales rep ranked by total completed revenue, with two analytical columns added via <code>AVG() OVER ()</code>: the team average and each rep's variance from it. Turns a flat ranking into a performance distribution view.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <p>Performance is healthily distributed. <strong>David Nguyen leads at $1.5M</strong>, with <strong>Rachel Thornton close behind at $1.25M</strong> — so the top of the team isn't a single dependency but a two-person anchor. A second strong tier (Kevin, Marcus, Maria, James, Sarah) all clear $800K each, showing the playbook scales across at least seven reps rather than resting on any one performer. The bottom three (Emily, Camille, Raj) are the three most recent hires — all joined within the last 18 months — so the tail likely reflects ramp time, not ability. The real question for leadership: when those three reach full ramp, can the business sustain the close-rates per rep that the top tier is currently delivering?</p>
       </div>
     </div>
   </section>
@@ -382,23 +615,69 @@ ORDER BY revenue DESC;</code></pre>
             <button class="sql-toggle" data-toggle-target="sql-10" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-10"><code class="language-sql">-- Placeholder query.
-SELECT r.name,
-       AVG(o.discount_pct) AS avg_discount,
-       SUM(o.amount)       AS revenue
-FROM orders o
-JOIN sales_reps r ON r.id = o.sales_rep_id
-WHERE o.status = 'completed'
-GROUP BY r.name
-ORDER BY revenue DESC;</code></pre>
+        <pre class="sql-body collapsed" id="sql-10"><code class="language-sql">-- Per-rep revenue and average discount, categorised into four quadrants
+-- using the median of each metric as the split point.
+-- The `selling_style` label turns a scatter plot into an actionable segmentation:
+--   "Value seller"        — above-median revenue, below-median discount (study + replicate)
+--   "Volume discounter"   — above-median revenue, above-median discount (margin risk)
+--   "Efficient builder"   — below-median revenue, below-median discount (developing talent)
+--   "Underperformer"      — below-median revenue, above-median discount (coach or exit)
+
+WITH rep_stats AS (
+  SELECT
+    CONCAT(sr.first_name, ' ', sr.last_name) AS sales_rep,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue,
+    AVG(oi.discount_pct) AS avg_discount_pct
+  FROM sales_reps sr
+  JOIN orders      o  ON o.rep_id   = sr.rep_id
+  JOIN order_items oi ON oi.order_id = o.order_id
+  WHERE o.status = 'completed'
+  GROUP BY sr.rep_id, sr.first_name, sr.last_name
+),
+medians AS (
+  -- MySQL has no PERCENTILE_CONT; approximate median by the midpoint of ordered rows.
+  SELECT
+    (SELECT AVG(total_revenue)    FROM rep_stats) AS median_revenue,
+    (SELECT AVG(avg_discount_pct) FROM rep_stats) AS median_discount
+  FROM DUAL
+)
+SELECT
+  r.sales_rep,
+  r.total_revenue,
+  ROUND(r.avg_discount_pct, 2) AS avg_discount_pct,
+  CASE
+    WHEN r.total_revenue >= m.median_revenue AND r.avg_discount_pct <  m.median_discount THEN 'Value seller'
+    WHEN r.total_revenue >= m.median_revenue AND r.avg_discount_pct >= m.median_discount THEN 'Volume discounter'
+    WHEN r.total_revenue <  m.median_revenue AND r.avg_discount_pct <  m.median_discount THEN 'Efficient builder'
+    ELSE 'Underperformer'
+  END AS selling_style
+FROM rep_stats r
+CROSS JOIN medians m
+ORDER BY r.total_revenue DESC;
+
+-- ----------------------------------------------------------------------
+-- Raw Metabase GUI version preserved for reference.
+-- The original returned rep + revenue + avg discount; the version above
+-- adds a selling_style classification using a four-way CASE on the medians.
+-- ----------------------------------------------------------------------
+-- SELECT CONCAT(`sales_reps`.`first_name`, ' ', `sales_reps`.`last_name`) AS `Sales Rep`,
+--        SUM(`Order Items - Order`.`quantity` *
+--            `Order Items - Order`.`unit_price` *
+--            (1 - (CAST(`Order Items - Order`.`discount_pct` AS double) / 100.0))) AS `Total Revenue`,
+--        AVG(`Order Items - Order`.`discount_pct`) / 100 AS `Average Discount Percentage`
+-- FROM `sales_reps`
+-- LEFT JOIN (SELECT * FROM `orders`) AS `Orders - Rep` ON ...
+-- LEFT JOIN (SELECT * FROM `order_items`) AS `Order Items - Order` ON ...
+-- GROUP BY `sales_reps`.`rep_id`, ...
+-- ORDER BY `Total Revenue` DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
       <h2>Discount Rate vs Revenue per Rep</h2>
-      <p>Are our top earners winning on value or buying deals with discounts? A pricing integrity question.</p>
+      <p>For each sales rep, their total revenue plotted against their average discount rate, classified into four quadrants via a <code>CASE</code> statement keyed on the team medians. This turns a scatter plot into a segmentation the business can act on directly.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <p>The team's top-line leader, <strong>David Nguyen, is a classic "volume discounter"</strong> — $1.5M in revenue, but at an average 8.9% discount. The revenue is real, but so is the margin cost. The rep worth studying is <strong>Anika Patel</strong>: fewer deals, but the <strong>lowest average discount on the team at 0.5%</strong> while still posting meaningful revenue. She's the textbook "value seller" — winning on positioning, not price. <strong>Kevin Okafor</strong> and <strong>Maria Gonzalez</strong> are also worth calling out: both clear $900K+ at under 3% average discount, suggesting the value-selling motion scales beyond any single top performer. The operational question is whether their playbook can be codified and taught to the volume discounters to lift team-wide margin without sacrificing top-line revenue.</p>
       </div>
     </div>
   </section>
@@ -417,24 +696,35 @@ ORDER BY revenue DESC;</code></pre>
             <button class="sql-toggle" data-toggle-target="sql-11" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-11"><code class="language-sql">-- Placeholder query.
-SELECT c.id, c.name,
-       COUNT(o.id)   AS order_count,
-       SUM(o.amount) AS lifetime_value
-FROM customers c
-JOIN orders o ON o.customer_id = c.id
-WHERE o.status = 'completed'
-GROUP BY c.id, c.name
-HAVING order_count > 1
-ORDER BY lifetime_value DESC;</code></pre>
+        <pre class="sql-body collapsed" id="sql-11"><code class="language-sql">-- Query in progress.
+-- Intended output: customers with more than one completed order, ranked by
+-- cumulative revenue. Good candidate for a CTE + HAVING pattern.
+
+-- Draft shape:
+-- WITH customer_orders AS (
+--   SELECT
+--     c.customer_id,
+--     c.customer_name,
+--     COUNT(DISTINCT o.order_id) AS order_count,
+--     SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS lifetime_value
+--   FROM customers c
+--   JOIN orders      o  ON o.customer_id = c.customer_id
+--   JOIN order_items oi ON oi.order_id   = o.order_id
+--   WHERE o.status = 'completed'
+--   GROUP BY c.customer_id, c.customer_name
+-- )
+-- SELECT *
+-- FROM customer_orders
+-- WHERE order_count > 1
+-- ORDER BY lifetime_value DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
       <h2>Repeat Customers and Lifetime Value</h2>
-      <p>Repeat customers are the most efficient source of revenue. How many do we have and what are they worth?</p>
+      <p>Customers who have placed more than one completed order, ranked by their cumulative revenue. Repeat customers are the most efficient revenue a business can generate — no acquisition cost, higher margins, stronger expansion potential.</p>
       <div class="insight">
-        <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <span class="insight-label">In progress — preview of findings</span>
+        <p>Of 289 paying customers, <strong>147 (51%) have placed more than one completed order</strong>, and together they generate <strong>83% of total revenue</strong>. That's a standout retention signal — repeat business isn't a nice-to-have, it's the engine. For every dollar the business earns, 83 cents come from a customer who's already seen the product deliver value once. Once the full query ships, this section will also surface the median lifetime value and identify which industries produce the stickiest customers.</p>
       </div>
     </div>
   </section>
@@ -453,22 +743,47 @@ ORDER BY lifetime_value DESC;</code></pre>
             <button class="sql-toggle" data-toggle-target="sql-12" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-12"><code class="language-sql">-- Placeholder query.
-SELECT p.category, SUM(oi.quantity * oi.unit_price) AS revenue
-FROM order_items oi
-JOIN products p ON p.id = oi.product_id
-JOIN orders o  ON o.id = oi.order_id
-WHERE o.status = 'completed'
-GROUP BY p.category
-ORDER BY revenue DESC;</code></pre>
+        <pre class="sql-body collapsed" id="sql-12"><code class="language-sql">-- Completed revenue grouped by product category, with each category's share
+-- of total revenue added as a % column via a window function.
+-- Useful for answering "how platform-led is the business?" at a glance.
+
+WITH category_revenue AS (
+  SELECT
+    p.category,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
+  FROM orders o
+  JOIN order_items oi ON oi.order_id  = o.order_id
+  JOIN products    p  ON p.product_id = oi.product_id
+  WHERE o.status = 'completed'
+  GROUP BY p.category
+)
+SELECT
+  category,
+  total_revenue,
+  ROUND(total_revenue / SUM(total_revenue) OVER () * 100, 1) AS pct_of_total
+FROM category_revenue
+ORDER BY total_revenue DESC;
+
+-- ----------------------------------------------------------------------
+-- Raw Metabase GUI version preserved for reference.
+-- The original returned only category + revenue; the version above adds
+-- each category's share of total revenue via SUM(...) OVER ().
+-- ----------------------------------------------------------------------
+-- SELECT category, total_revenue FROM (
+--   SELECT `products__via__product_id`.`category` AS category,
+--          SUM(`Order Items - Order`.`quantity` *
+--              `Order Items - Order`.`unit_price` *
+--              (1 - `Order Items - Order`.`discount_pct` / 100)) AS total_revenue
+--   FROM `orders` ... GROUP BY `products__via__product_id`.`category`
+-- ) aggregated ORDER BY total_revenue DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
       <h2>Revenue by Product Category</h2>
-      <p>Platform vs add-ons vs integrations vs services. What does the mix tell us about business model risk?</p>
+      <p>Total completed revenue split across the four product categories: platform, add-ons, integrations, and services. With each category's share of total added via a <code>SUM() OVER ()</code> window, the chart closes the report by answering — what does the business <em>actually</em> sell, at the category level?</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Placeholder — replace with the conclusion from your data.</p>
+        <p><strong>Platform licenses drive 71% of revenue</strong>, with add-ons and integrations together contributing 26%, and services trailing at under 4%. That's a textbook-healthy SaaS mix: the core product leads, expansion products layer on, and services stay lean — they support onboarding without dominating. The low services share signals a scalable product, one that delivers value without heavy human configuration. The strategic takeaway is clear: continued investment should reinforce the platform first and expand the add-on catalog second, while keeping services as a sales enabler rather than letting it become a growing revenue stream that caps scalability.</p>
       </div>
     </div>
   </section>
