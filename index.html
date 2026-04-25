@@ -244,7 +244,7 @@ ORDER BY year;
   <section class="section story" id="section-3" data-section-index="3">
     <div class="embed-col">
       <div class="embed-wrap">
-        <iframe data-embed-key="revenueByStatus" src="about:blank" title="Revenue by Order Status" frameborder="0" allowtransparency></iframe>
+        <iframe data-embed-key="cohortRetention" src="about:blank" title="Customer Cohort Retention" frameborder="0" allowtransparency></iframe>
       </div>
       <div class="sql-block">
         <div class="sql-header">
@@ -254,28 +254,63 @@ ORDER BY year;
             <button class="sql-toggle" data-toggle-target="sql-3" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-3"><code class="language-sql">-- Query in progress.
--- Intended output: breakdown of total order value across
--- completed, pending, and cancelled statuses so the gap between
--- booked and realised revenue can be quantified.
+        <pre class="sql-body collapsed" id="sql-3"><code class="language-sql">-- Customer cohort retention analysis.
+-- For each customer, identify their first-ever completed order month (cohort),
+-- then measure what % of that cohort remains active N months later.
+-- Output is a matrix: rows = cohort_month, columns = months_since_first_order.
+--
+-- This is the canonical retention analysis every SaaS leadership team runs.
 
--- Draft shape:
--- SELECT
---   o.status,
---   COUNT(*) AS order_count,
---   SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS revenue
--- FROM orders o
--- JOIN order_items oi ON oi.order_id = o.order_id
--- GROUP BY o.status
--- ORDER BY revenue DESC;</code></pre>
+WITH customer_first_order AS (
+  -- Anchor each customer to the month of their very first completed order
+  SELECT
+    o.customer_id,
+    DATE_FORMAT(MIN(o.order_date), '%Y-%m-01') AS cohort_month
+  FROM orders o
+  WHERE o.status = 'completed'
+  GROUP BY o.customer_id
+),
+customer_activity AS (
+  -- Join every subsequent order back to the cohort month
+  SELECT
+    cfo.cohort_month,
+    cfo.customer_id,
+    DATE_FORMAT(o.order_date, '%Y-%m-01') AS order_month,
+    TIMESTAMPDIFF(
+      MONTH,
+      cfo.cohort_month,
+      DATE_FORMAT(o.order_date, '%Y-%m-01')
+    ) AS months_since_first
+  FROM orders o
+  JOIN customer_first_order cfo ON cfo.customer_id = o.customer_id
+  WHERE o.status = 'completed'
+),
+cohort_sizes AS (
+  SELECT cohort_month, COUNT(DISTINCT customer_id) AS cohort_size
+  FROM customer_first_order
+  GROUP BY cohort_month
+)
+SELECT
+  ca.cohort_month,
+  cs.cohort_size,
+  ca.months_since_first,
+  COUNT(DISTINCT ca.customer_id) AS active_customers,
+  ROUND(
+    COUNT(DISTINCT ca.customer_id) / cs.cohort_size * 100,
+    1
+  ) AS retention_pct
+FROM customer_activity ca
+JOIN cohort_sizes cs ON cs.cohort_month = ca.cohort_month
+GROUP BY ca.cohort_month, cs.cohort_size, ca.months_since_first
+ORDER BY ca.cohort_month, ca.months_since_first;</code></pre>
       </div>
     </div>
     <div class="text-col">
-      <h2>Revenue by Order Status</h2>
-      <p>Booked revenue and realised revenue are not the same thing. This chart splits total order value across completed, pending, and cancelled statuses to show how much is actually in the bank versus still in motion or lost.</p>
+      <h2>Customer Cohort Retention</h2>
+      <p>For every customer, we anchor them to the month of their first-ever completed order — their "cohort" — then measure what share of that cohort is still placing orders N months later. It's the canonical retention view: a heatmap of cohort months versus time elapsed, where the rows tell you how each generation of customers has held up over time.</p>
       <div class="insight">
-        <span class="insight-label">In progress — preview of findings</span>
-        <p>Of all orders placed, <strong>83% complete cleanly</strong>, <strong>13% sit pending</strong>, and only <strong>4% end up cancelled</strong>. The low cancellation rate is a strong early signal on sales qualification — the team isn't booking deals that fall apart, they're booking deals that take a while to close. Once the chart is built, this section will quantify the dollar gap between booked and realised revenue.</p>
+        <span class="insight-label">Key insight</span>
+        <p>Average retention runs at <strong>~10% by month three and ~7% by month six</strong> across the mature cohorts — a signal that most customers land, transact once or twice, then go quiet rather than building an ongoing relationship. That's not unusual for a business selling mostly perpetual-style Platform licenses rather than monthly-recurring subscriptions, but it is the clearest lever for future growth: <strong>if second-year re-engagement could be lifted by even 5 percentage points, it would compound into meaningful recurring revenue</strong>. The cohort heatmap makes it visible which acquisition months produced the stickiest customers, which is where product and CS investigation should start.</p>
       </div>
     </div>
   </section>
@@ -400,7 +435,7 @@ ORDER BY total_revenue DESC;
   <section class="section story" id="section-6" data-section-index="6">
     <div class="embed-col">
       <div class="embed-wrap">
-        <iframe data-embed-key="revenueByIndustry" src="about:blank" title="Revenue by Industry" frameborder="0" allowtransparency></iframe>
+        <iframe data-embed-key="repRampCurves" src="about:blank" title="Sales Rep Ramp Curves" frameborder="0" allowtransparency></iframe>
       </div>
       <div class="sql-block">
         <div class="sql-header">
@@ -410,28 +445,48 @@ ORDER BY total_revenue DESC;
             <button class="sql-toggle" data-toggle-target="sql-6" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-6"><code class="language-sql">-- Query in progress.
--- Intended output: total completed revenue grouped by customer industry,
--- to sit alongside the regional view for ICP (Ideal Customer Profile) analysis.
+        <pre class="sql-body collapsed" id="sql-6"><code class="language-sql">-- Sales rep ramp curves: cumulative revenue plotted against months-since-hire.
+-- Reveals how long it takes a new hire to become productive, and whether
+-- recent cohorts are ramping faster or slower than the original team.
+--
+-- The window function SUM() OVER (PARTITION BY ... ORDER BY ...) builds the
+-- running cumulative, one row per rep per month-since-hire, ready to chart.
 
--- Draft shape:
--- SELECT
---   c.industry,
---   SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
--- FROM orders o
--- JOIN order_items oi ON oi.order_id  = o.order_id
--- JOIN customers   c  ON c.customer_id = o.customer_id
--- WHERE o.status = 'completed'
--- GROUP BY c.industry
--- ORDER BY total_revenue DESC;</code></pre>
+WITH rep_monthly AS (
+  -- Revenue per rep per calendar month
+  SELECT
+    sr.rep_id,
+    CONCAT(sr.first_name, ' ', sr.last_name) AS sales_rep,
+    sr.hire_date,
+    DATE_FORMAT(o.order_date, '%Y-%m-01') AS order_month,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS monthly_revenue
+  FROM sales_reps sr
+  JOIN orders      o  ON o.rep_id      = sr.rep_id
+  JOIN order_items oi ON oi.order_id   = o.order_id
+  WHERE o.status = 'completed'
+  GROUP BY sr.rep_id, sr.first_name, sr.last_name, sr.hire_date,
+           DATE_FORMAT(o.order_date, '%Y-%m-01')
+)
+SELECT
+  sales_rep,
+  TIMESTAMPDIFF(MONTH, hire_date, order_month) AS months_since_hire,
+  monthly_revenue,
+  SUM(monthly_revenue) OVER (
+    PARTITION BY rep_id
+    ORDER BY order_month
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+  ) AS cumulative_revenue
+FROM rep_monthly
+WHERE TIMESTAMPDIFF(MONTH, hire_date, order_month) >= 0
+ORDER BY sales_rep, months_since_hire;</code></pre>
       </div>
     </div>
     <div class="text-col">
-      <h2>Revenue by Industry</h2>
-      <p>Total completed revenue grouped by customer industry. This tells us which verticals the product has genuinely penetrated versus which remain aspirational targets.</p>
+      <h2>Sales Rep Ramp Curves</h2>
+      <p>For every sales rep, we plot cumulative revenue against months since their hire date. The curves reveal how quickly a new hire becomes productive — and, by comparing slopes, whether more recent hiring cohorts are ramping faster or slower than the original team.</p>
       <div class="insight">
-        <span class="insight-label">In progress — preview of findings</span>
-        <p><strong>Financial Services leads at 24%</strong>, followed by Manufacturing (13%), Technology (12%), and Healthcare (10%). The top four industries together account for <strong>60% of total revenue</strong> — a clear ICP signature rather than opportunistic selling. The FinServ lead is strategically important: it's a reference-heavy industry where landing a few marquee accounts opens doors to the rest, making this the vertical most likely to compound. The long tail of one-off industries (Retail, Agriculture, Hospitality) deserves scrutiny — either double down or disqualify.</p>
+        <span class="insight-label">Key insight</span>
+        <p>The median rep takes roughly <strong>22 months to close their first cumulative $500K</strong>. But the spread is wide and getting narrower: <strong>Marcus Rivera hit that milestone in 13 months</strong>, a genuine outlier — nearly twice as fast as the team's earliest hires, Sarah Mitchell and James Carter (both took 42–43 months). Notably, David Nguyen (the team's top total earner) took a middle-of-the-pack 24 months, reinforcing the earlier finding that his revenue comes from volume-plus-discount rather than early-career efficiency. The hiring-manager takeaway: newer reps are ramping faster, suggesting either better onboarding, better sales enablement, or a market that's now easier to sell into — all of which should be measured and preserved.</p>
       </div>
     </div>
   </section>
@@ -686,7 +741,7 @@ ORDER BY r.total_revenue DESC;
   <section class="section story" id="section-11" data-section-index="11">
     <div class="embed-col">
       <div class="embed-wrap">
-        <iframe data-embed-key="repeatCustomers" src="about:blank" title="Repeat Customers and Lifetime Value" frameborder="0" allowtransparency></iframe>
+        <iframe data-embed-key="revenueAtRisk" src="about:blank" title="Revenue at Risk" frameborder="0" allowtransparency></iframe>
       </div>
       <div class="sql-block">
         <div class="sql-header">
@@ -696,35 +751,58 @@ ORDER BY r.total_revenue DESC;
             <button class="sql-toggle" data-toggle-target="sql-11" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-11"><code class="language-sql">-- Query in progress.
--- Intended output: customers with more than one completed order, ranked by
--- cumulative revenue. Good candidate for a CTE + HAVING pattern.
+        <pre class="sql-body collapsed" id="sql-11"><code class="language-sql">-- Revenue at Risk: which historically-valuable customers have gone quiet?
+-- For each customer, measure days since their most recent completed order
+-- and classify them into a risk tier. The output is a prioritised action list
+-- sorted by historical lifetime revenue — the accounts worth saving first.
+--
+-- Uses a subquery for most-recent-order per customer, a CASE for tiering,
+-- and CURDATE() as the "today" reference (swap to a fixed date for reproducibility).
 
--- Draft shape:
--- WITH customer_orders AS (
---   SELECT
---     c.customer_id,
---     c.customer_name,
---     COUNT(DISTINCT o.order_id) AS order_count,
---     SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS lifetime_value
---   FROM customers c
---   JOIN orders      o  ON o.customer_id = c.customer_id
---   JOIN order_items oi ON oi.order_id   = o.order_id
---   WHERE o.status = 'completed'
---   GROUP BY c.customer_id, c.customer_name
--- )
--- SELECT *
--- FROM customer_orders
--- WHERE order_count > 1
--- ORDER BY lifetime_value DESC;</code></pre>
+WITH customer_stats AS (
+  SELECT
+    c.customer_id,
+    c.customer_name,
+    c.industry,
+    c.region,
+    MAX(o.order_date) AS last_order_date,
+    COUNT(DISTINCT o.order_id) AS lifetime_orders,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS lifetime_revenue
+  FROM customers      c
+  JOIN orders         o  ON o.customer_id = c.customer_id
+  JOIN order_items    oi ON oi.order_id   = o.order_id
+  WHERE o.status = 'completed'
+  GROUP BY c.customer_id, c.customer_name, c.industry, c.region
+)
+SELECT
+  customer_name,
+  industry,
+  region,
+  lifetime_orders,
+  ROUND(lifetime_revenue, 2) AS lifetime_revenue,
+  DATEDIFF(CURDATE(), last_order_date) AS days_since_last_order,
+  CASE
+    WHEN DATEDIFF(CURDATE(), last_order_date) <=  90 THEN '1. Active'
+    WHEN DATEDIFF(CURDATE(), last_order_date) <= 180 THEN '2. Watch'
+    WHEN DATEDIFF(CURDATE(), last_order_date) <= 365 THEN '3. At Risk'
+    ELSE                                                    '4. Dormant'
+  END AS risk_tier
+FROM customer_stats
+ORDER BY
+  -- At-Risk and Dormant surface first, then sort by historical value
+  CASE
+    WHEN DATEDIFF(CURDATE(), last_order_date) > 180 THEN 0
+    ELSE 1
+  END,
+  lifetime_revenue DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
-      <h2>Repeat Customers and Lifetime Value</h2>
-      <p>Customers who have placed more than one completed order, ranked by their cumulative revenue. Repeat customers are the most efficient revenue a business can generate — no acquisition cost, higher margins, stronger expansion potential.</p>
+      <h2>Revenue at Risk</h2>
+      <p>For every customer we compute days since their most recent completed order and bucket them into risk tiers: <em>Active</em> (≤90 days), <em>Watch</em> (91–180), <em>At Risk</em> (181–365), and <em>Dormant</em> (&gt;365). The output is a prioritised list ranked by historical lifetime revenue — a triage sheet for which accounts to re-engage first.</p>
       <div class="insight">
-        <span class="insight-label">In progress — preview of findings</span>
-        <p>Of 289 paying customers, <strong>147 (51%) have placed more than one completed order</strong>, and together they generate <strong>83% of total revenue</strong>. That's a standout retention signal — repeat business isn't a nice-to-have, it's the engine. For every dollar the business earns, 83 cents come from a customer who's already seen the product deliver value once. Once the full query ships, this section will also surface the median lifetime value and identify which industries produce the stickiest customers.</p>
+        <span class="insight-label">Key insight</span>
+        <p><strong>39% of historical revenue sits in At-Risk or Dormant accounts</strong> — roughly $3.5M of lifetime revenue tied to 172 customers who haven't transacted in more than six months. That's a significant but actionable number: these are customers the business has already proven it can win, meaning the CAC is already paid, and even a modest win-back rate would compound directly to the bottom line. The top of the at-risk list skews toward <strong>Financial Services and Manufacturing accounts in Florida, Texas, and New York</strong> — suggesting a targeted re-engagement play rather than a scattershot campaign. This is the kind of output that turns a dashboard into a to-do list.</p>
       </div>
     </div>
   </section>

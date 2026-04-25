@@ -19,21 +19,21 @@
      Metabase → open question → Share icon → Public link tab
      Copy iframe src, replace http://localhost:3000 with METABASE_BASE.
 ------------------------------------------------------------------- */
-const METABASE_BASE = 'https://oversweet-epidermal-spoon.ngrok-free.dev'; // ← change when ngrok restarts (no trailing slash)
+const METABASE_BASE = 'https://REPLACE-ME.ngrok.io'; // ← change when ngrok restarts
 
 const EMBEDS = {
-  totalRevenue: `${METABASE_BASE}/public/question/cbb20f4a-672c-4000-8c14-7f3b53e81013`,
-  revenueByYear: `${METABASE_BASE}/public/question/77b37950-90f4-4e4d-8311-277f613f25b7`,
-  revenueByStatus: `${METABASE_BASE}/public/question/REPLACE-WITH-UUID`, // TODO: question not yet built
-  topCustomers: `${METABASE_BASE}/public/question/e7836ce8-a536-4292-9a9d-97bb7e692ded`,
-  revenueByRegion: `${METABASE_BASE}/public/question/4329c7d2-7354-40e4-8c51-b9d364193dd5`,
-  revenueByIndustry: `${METABASE_BASE}/public/question/REPLACE-WITH-UUID`, // TODO: question not yet built
-  topProducts: `${METABASE_BASE}/public/question/b54ef232-c486-4071-aa3c-5348f179d98d`,
-  avgDealSize: `${METABASE_BASE}/public/question/ac4eda7b-6b75-4f3d-afcd-7e8eb5e737c1`,
-  topSalesReps: `${METABASE_BASE}/public/question/dfe6038c-8a01-4ac1-9506-c6dbb7759736`,
+  totalRevenue:      `${METABASE_BASE}/public/question/cbb20f4a-672c-4000-8c14-7f3b53e81013`,
+  revenueByYear:     `${METABASE_BASE}/public/question/77b37950-90f4-4e4d-8311-277f613f25b7`,
+  cohortRetention:   `${METABASE_BASE}/public/question/a3425917-5de9-4338-8523-7e0769e12f24`,
+  topCustomers:      `${METABASE_BASE}/public/question/e7836ce8-a536-4292-9a9d-97bb7e692ded`,
+  revenueByRegion:   `${METABASE_BASE}/public/question/4329c7d2-7354-40e4-8c51-b9d364193dd5`,
+  repRampCurves:     `${METABASE_BASE}/public/question/ea149862-5f36-4576-ad40-6bf40e2e0526`,
+  topProducts:       `${METABASE_BASE}/public/question/b54ef232-c486-4071-aa3c-5348f179d98d`,
+  avgDealSize:       `${METABASE_BASE}/public/question/ac4eda7b-6b75-4f3d-afcd-7e8eb5e737c1`,
+  topSalesReps:      `${METABASE_BASE}/public/question/dfe6038c-8a01-4ac1-9506-c6dbb7759736`,
   discountVsRevenue: `${METABASE_BASE}/public/question/06594329-f99b-479c-a462-9d499cb8ec34`,
-  repeatCustomers: `${METABASE_BASE}/public/question/REPLACE-WITH-UUID`, // TODO: question not yet built
-  productMix: `${METABASE_BASE}/public/question/a6a00bad-9d1a-4fcf-a6d7-2bf903470a89`,
+  revenueAtRisk:     `${METABASE_BASE}/public/question/b52e2908-19ad-4e96-bdbf-3fde3030c161`,
+  productMix:        `${METABASE_BASE}/public/question/a6a00bad-9d1a-4fcf-a6d7-2bf903470a89`,
 };
 
 /* -------------------------------------------------------------------
@@ -87,7 +87,10 @@ function initScrollAnimations() {
 ------------------------------------------------------------------- */
 function initNavDots() {
   const navDots = document.getElementById('navDots');
-  const sections = document.querySelectorAll('.section');
+  // Nav dots represent story sections only — the tech stack section
+  // sits between hero and story 1 but isn't part of the scrolling narrative,
+  // so we exclude it from dot nav via :not(.techstack).
+  const sections = document.querySelectorAll('.section:not(.techstack)');
   if (!navDots || !sections.length) return;
 
   // Build one dot per section
