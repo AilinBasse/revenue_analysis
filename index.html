@@ -146,7 +146,7 @@
 
   <!-- ================= STORY SECTIONS ================= -->
 
-  <!-- Section 1 -->
+  <!-- Section 1 (was 1: Total Revenue) -->
   <section class="section story" id="section-1" data-section-index="1">
     <div class="embed-col">
       <div class="embed-wrap">
@@ -187,11 +187,11 @@ WHERE o.status = 'completed';
     </div>
   </section>
 
-  <!-- Section 2 -->
+<!-- Section 2 (was 2: Quarterly Revenue) -->
   <section class="section story" id="section-2" data-section-index="2">
     <div class="embed-col">
       <div class="embed-wrap">
-        <iframe data-embed-key="revenueByYear" src="about:blank" title="Revenue Growth Year Over Year" frameborder="0"
+        <iframe data-embed-key="revenueByYear" src="about:blank" title="Quarterly Revenue" frameborder="0"
           allowtransparency></iframe>
       </div>
       <div class="sql-block">
@@ -203,48 +203,44 @@ WHERE o.status = 'completed';
             <button class="sql-toggle" data-toggle-target="sql-2" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-2"><code class="language-sql">
--- Annual completed revenue.
+        <pre class="sql-body collapsed" id="sql-2"><code class="language-sql">-- Quarterly completed revenue.
+-- YEAR() and QUARTER() are MySQL native date-part functions, both indexable
+-- and far cheaper than string manipulation (DATE_FORMAT) for this grouping.
 
-WITH yearly AS (
-  SELECT
-    YEAR(o.order_date) AS year,
-    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS revenue
-  FROM orders o
-  JOIN order_items oi ON oi.order_id = o.order_id
-  WHERE o.status = 'completed'
-  GROUP BY YEAR(o.order_date)
-)
 SELECT
-  year,
-  revenue
-FROM yearly
-ORDER BY year;
-</code></pre>
+  YEAR(o.order_date)    AS year,
+  QUARTER(o.order_date) AS quarter,
+  SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS revenue
+FROM orders o
+JOIN order_items oi ON oi.order_id = o.order_id
+WHERE o.status = 'completed'
+GROUP BY YEAR(o.order_date), QUARTER(o.order_date)
+ORDER BY year, quarter;</code></pre>
       </div>
     </div>
     <div class="text-col">
-      <h2>Revenue Growth Year Over Year</h2>
-      <p>Annual completed revenue by calendar year, with year-over-year growth calculated via a <code>LAG()</code>
-        window function. This is the trajectory chart — the one investors, boards, and hiring managers look at first.
-      </p>
+      <h2>Quarterly Revenue</h2>
+      <p>Completed revenue grouped by year and calendar quarter. Quarterly granularity is the right cadence for a
+        business at this scale: monthly figures are too noisy to read a trend, while annual numbers hide the timing of
+        when revenue actually lands.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Revenue scaled from <strong>378 K€ in 2021 to 3,96 M€ in 2024</strong>, with YoY growth rates of <strong>+206%
-            → +117% → +57%</strong>. That's a classically healthy maturation curve — triple-digit growth in the early
-          scaling years giving way to strong but decelerating growth as the addressable market gets more saturated. The
-          2024 figure of +57% on a 2,5 M€ base is the more meaningful signal: the business is still compounding at
-          venture-scale rates, not plateauing. <em>Note: 2025 figures cover Q1 only, so the apparent drop is a
-            data-window artifact, not a trend.</em></p>
+        <p>Two patterns jump out. First, <strong>Q4 is consistently the largest quarter every year</strong> — peaking at
+          <strong>1,38 M€ in Q4 2024</strong>, the highest single quarter on record — pointing to a clear year-end
+          buying cycle that procurement teams plan around. Second, the scale-up is unmistakable: Q4 2021 closed at 279
+          K€; three years later, Q4 2024 was nearly five times that. <strong>Q1 2025 alone (774 K€)</strong> already
+          exceeds the entire calendar year of 2021, suggesting 2025 is on track to outpace prior years if the seasonal
+          pattern holds.
+        </p>
       </div>
     </div>
   </section>
 
-  <!-- Section 3 -->
+<!-- Section 3 (was 4: Top Customers) -->
   <section class="section story" id="section-3" data-section-index="3">
     <div class="embed-col">
       <div class="embed-wrap">
-        <iframe data-embed-key="cohortRetention" src="about:blank" title="Customer Cohort Retention" frameborder="0"
+        <iframe data-embed-key="topCustomers" src="about:blank" title="Top 10 Customers by Revenue" frameborder="0"
           allowtransparency></iframe>
       </div>
       <div class="sql-block">
@@ -256,7 +252,481 @@ ORDER BY year;
             <button class="sql-toggle" data-toggle-target="sql-3" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-3"><code class="language-sql">-- Customer cohort retention analysis.
+        <pre class="sql-body collapsed" id="sql-3"><code class="language-sql">-- Top 10 customers by revenue, with everyone else grouped into "Other".
+-- Uses RANK() so the long tail is aggregated in a single pass rather than
+-- two separate queries. Helpful for visualising customer concentration.
+
+WITH customer_revenue AS (
+  SELECT
+    c.customer_name,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS revenue
+  FROM orders o
+  JOIN order_items oi ON oi.order_id  = o.order_id
+  JOIN customers   c  ON c.customer_id = o.customer_id
+  WHERE o.status = 'completed'
+  GROUP BY c.customer_name
+),
+ranked AS (
+  SELECT
+    customer_name,
+    revenue,
+    RANK() OVER (ORDER BY revenue DESC) AS rnk
+  FROM customer_revenue
+)
+SELECT
+  CASE 
+    WHEN rnk <= 10 THEN customer_name 
+    ELSE 'Other' 
+  END AS customer_group,
+  SUM(revenue) AS total_revenue
+FROM ranked
+GROUP BY customer_group
+ORDER BY total_revenue DESC;
+</code></pre>
+      </div>
+    </div>
+    <div class="text-col">
+      <h2>Top 10 Customers by Revenue</h2>
+      <p>The ten customers who have contributed the most completed revenue, ranked and grouped — with everyone outside
+        the top ten bucketed into "Other" via a <code>RANK()</code> window function so the long tail is visible on a
+        single chart.</p>
+      <div class="insight">
+        <span class="insight-label">Key insight</span>
+        <p>The top ten customers account for just <strong>21% of total revenue</strong>, with the largest single account
+          at 3,4%. Industry benchmarks for Series A SaaS businesses (2–10 M€ ARR range) target no single customer above
+          20% and top five customers under 50% — this business clears both thresholds comfortably. The revenue base is
+          genuinely broad: 289 paying customers carrying the total, not a handful of whales. The top ten also span
+          <strong>seven different states and eight different industries</strong>, so there's no single geographic or
+          vertical corridor the business is dependent on. For a hiring manager, the signal here is resilience — losing
+          any single account wouldn't move the needle more than a couple of percent.</p>
+        <cite>Benchmark: <a href="https://www.metrichq.org/saas/customer-concentration/" target="_blank"
+            rel="noopener">MetricHQ — SaaS Customer Concentration</a></cite>
+      </div>
+    </div>
+  </section>
+
+<!-- Section 4 (was 5: Revenue by State) -->
+  <section class="section story" id="section-4" data-section-index="4">
+    <div class="embed-col">
+      <div class="embed-wrap">
+        <iframe data-embed-key="revenueByRegion" src="about:blank" title="Revenue by State" frameborder="0"
+          allowtransparency></iframe>
+      </div>
+      <div class="sql-block">
+        <div class="sql-header">
+          <span class="sql-label">SQL</span>
+          <div class="sql-actions">
+            <button class="sql-copy" data-copy-target="sql-4" aria-label="Copy SQL"><i
+                data-lucide="copy"></i><span>Copy</span></button>
+            <button class="sql-toggle" data-toggle-target="sql-4" aria-expanded="false">Show SQL</button>
+          </div>
+        </div>
+        <pre class="sql-body collapsed" id="sql-4"><code class="language-sql">-- Total completed revenue by customer region.
+-- Straight aggregation with a discount-adjusted revenue calculation.
+
+SELECT
+  c.region,
+  SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
+FROM orders o
+JOIN order_items oi ON oi.order_id  = o.order_id
+JOIN customers   c  ON c.customer_id = o.customer_id
+WHERE o.status = 'completed'
+GROUP BY c.region
+ORDER BY total_revenue DESC;
+</code></pre>
+      </div>
+    </div>
+    <div class="text-col">
+      <h2>Revenue by State</h2>
+      <p>Total completed revenue mapped across US states. The chart that shapes sales-territory planning — where the
+        revenue lives is where the next account executive should be based.</p>
+      <div class="insight">
+        <span class="insight-label">Key insight</span>
+        <p>Three states sit in close contention at the top: <strong>New York (12,6%), Texas (12,0%), and California
+            (11,4%)</strong>. Together they produce over a third of revenue, but no single state dominates — the
+          business isn't dependent on any one coast or metro. The <strong>top five states account for 48% of revenue,
+            the top ten for 65%</strong>, with a meaningful long tail of smaller-state customers filling out the rest.
+          For territory planning, the signal is that coverage matters more than concentration: the sales motion works in
+          economically dense states but also lands deals in smaller markets, suggesting the product doesn't require a
+          specific geographic or cultural fit to succeed.</p>
+      </div>
+    </div>
+  </section>
+
+<!-- Section 5 (was 7: Top Products) -->
+  <section class="section story" id="section-5" data-section-index="5">
+    <div class="embed-col">
+      <div class="embed-wrap">
+        <iframe data-embed-key="topProducts" src="about:blank" title="Best Selling Products" frameborder="0"
+          allowtransparency></iframe>
+      </div>
+      <div class="sql-block">
+        <div class="sql-header">
+          <span class="sql-label">SQL</span>
+          <div class="sql-actions">
+            <button class="sql-copy" data-copy-target="sql-5" aria-label="Copy SQL"><i
+                data-lucide="copy"></i><span>Copy</span></button>
+            <button class="sql-toggle" data-toggle-target="sql-5" aria-expanded="false">Show SQL</button>
+          </div>
+        </div>
+        <pre class="sql-body collapsed" id="sql-5"><code class="language-sql">-- Products ranked by total completed revenue.
+-- The ORDER BY exposes the shape of the distribution even without a LIMIT,
+-- so the chart can decide how many top entries to visualise.
+
+SELECT
+  p.product_name,
+  SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
+FROM orders o
+JOIN order_items oi ON oi.order_id   = o.order_id
+JOIN products    p  ON p.product_id  = oi.product_id
+WHERE o.status = 'completed'
+GROUP BY p.product_name
+ORDER BY total_revenue DESC;
+</code></pre>
+      </div>
+    </div>
+    <div class="text-col">
+      <h2>Best Selling Products</h2>
+      <p>Products ranked by total revenue contribution. This is the product-mix reality check: is the business selling
+        what leadership thinks it's selling, or is the real driver something else entirely?</p>
+      <div class="insight">
+        <span class="insight-label">Key insight</span>
+        <p>The two <strong>CorePlatform licenses (Standard and Premium) combine to drive the majority of
+            revenue</strong>, with the <strong>Premium tier pulling ahead of Standard</strong> — a signal that upmarket
+          pricing is working, not a discount-to-close pattern. The strongest add-ons are Security Suite, Data Warehouse
+          Connector, and Analytics Module, each contributing meaningfully without any one dominating. That's a healthy
+          pattern: customers are buying the core product first and expanding with add-ons, which is exactly how SaaS
+          contract values grow over time.</p>
+      </div>
+    </div>
+  </section>
+
+<!-- Section 6 (was 12: Product Mix) -->
+  <section class="section story" id="section-6" data-section-index="6">
+    <div class="embed-col">
+      <div class="embed-wrap">
+        <iframe data-embed-key="productMix" src="about:blank" title="Revenue by Product Category" frameborder="0"
+          allowtransparency></iframe>
+      </div>
+      <div class="sql-block">
+        <div class="sql-header">
+          <span class="sql-label">SQL</span>
+          <div class="sql-actions">
+            <button class="sql-copy" data-copy-target="sql-6" aria-label="Copy SQL"><i
+                data-lucide="copy"></i><span>Copy</span></button>
+            <button class="sql-toggle" data-toggle-target="sql-6" aria-expanded="false">Show SQL</button>
+          </div>
+        </div>
+        <pre class="sql-body collapsed" id="sql-6"><code class="language-sql">-- Completed revenue grouped by product category, with each category's share
+-- of total revenue added as a % column via a window function.
+-- Useful for answering "how platform-led is the business?" at a glance.
+
+WITH category_revenue AS (
+  SELECT
+    p.category,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
+  FROM orders o
+  JOIN order_items oi ON oi.order_id  = o.order_id
+  JOIN products    p  ON p.product_id = oi.product_id
+  WHERE o.status = 'completed'
+  GROUP BY p.category
+)
+SELECT
+  category,
+  total_revenue,
+  ROUND(total_revenue / SUM(total_revenue) OVER () * 100, 1) AS pct_of_total
+FROM category_revenue
+ORDER BY total_revenue DESC;</code></pre>
+      </div>
+    </div>
+    <div class="text-col">
+      <h2>Revenue by Product Category</h2>
+      <p>Total completed revenue split across the four product categories: platform, add-ons, integrations, and
+        services. With each category's share of total added via a <code>SUM() OVER ()</code> window, the chart closes
+        the report by answering — what does the business <em>actually</em> sell, at the category level?</p>
+      <div class="insight">
+        <span class="insight-label">Key insight</span>
+        <p><strong>Platform licenses drive 71% of revenue</strong>, with add-ons and integrations together contributing
+          26%, and services trailing at under 4%. That's a textbook-healthy SaaS mix: the core product leads, expansion
+          products layer on, and services stay lean — they support onboarding without dominating. The low services share
+          signals a scalable product, one that delivers value without heavy human configuration. The strategic takeaway
+          is clear: continued investment should reinforce the platform first and expand the add-on catalog second, while
+          keeping services as a sales enabler rather than letting it become a growing revenue stream that caps
+          scalability.</p>
+      </div>
+    </div>
+  </section>
+
+<!-- Section 7 (was 8: Avg Deal Size) -->
+  <section class="section story" id="section-7" data-section-index="7">
+    <div class="embed-col">
+      <div class="embed-wrap">
+        <iframe data-embed-key="avgDealSize" src="about:blank" title="Average Deal Size by Industry" frameborder="0"
+          allowtransparency></iframe>
+      </div>
+      <div class="sql-block">
+        <div class="sql-header">
+          <span class="sql-label">SQL</span>
+          <div class="sql-actions">
+            <button class="sql-copy" data-copy-target="sql-7" aria-label="Copy SQL"><i
+                data-lucide="copy"></i><span>Copy</span></button>
+            <button class="sql-toggle" data-toggle-target="sql-7" aria-expanded="false">Show SQL</button>
+          </div>
+        </div>
+        <pre class="sql-body collapsed" id="sql-7"><code class="language-sql">-- Average revenue per line-item by customer industry.
+-- Using AVG on the line-item level gives a per-product-line deal size;
+-- industries with larger average values are the ones with enterprise-style buying patterns.
+
+SELECT
+  c.industry,
+  AVG(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS avg_deal_size
+FROM orders o
+JOIN order_items oi ON oi.order_id  = o.order_id
+JOIN customers   c  ON c.customer_id = o.customer_id
+WHERE o.status = 'completed'
+GROUP BY c.industry
+ORDER BY avg_deal_size DESC;
+</code></pre>
+      </div>
+    </div>
+    <div class="text-col">
+      <h2>Average Deal Size by Industry</h2>
+      <p>Industries ranked by the average revenue per completed line item. Where the Revenue by Industry view shows
+        <em>volume</em>, this view shows <em>intensity</em> — some industries buy less frequently but spend
+        substantially more per transaction.
+      </p>
+      <div class="insight">
+        <span class="insight-label">Key insight</span>
+        <p>The industries with the highest average line values (Media &amp; Entertainment, Nonprofit, Transportation,
+          Education) aren't the ones with the highest total revenue. That's the tell for enterprise-style buying
+          behaviour — fewer accounts, bigger deals, longer cycles. Financial Services leads on total revenue without
+          leading on average deal size, which means volume, not whale-hunting, is driving its position. Each motion
+          calls for a different playbook: enterprise targeting for the high-average verticals, velocity for the
+          high-volume ones. Mismatching the two is one of the most common go-to-market errors, and this chart is the
+          starting point for avoiding it.</p>
+      </div>
+    </div>
+  </section>
+
+<!-- Section 8 (was 9: Top Sales Reps) -->
+  <section class="section story" id="section-8" data-section-index="8">
+    <div class="embed-col">
+      <div class="embed-wrap">
+        <iframe data-embed-key="topSalesReps" src="about:blank" title="Top Sales Reps by Revenue" frameborder="0"
+          allowtransparency></iframe>
+      </div>
+      <div class="sql-block">
+        <div class="sql-header">
+          <span class="sql-label">SQL</span>
+          <div class="sql-actions">
+            <button class="sql-copy" data-copy-target="sql-8" aria-label="Copy SQL"><i
+                data-lucide="copy"></i><span>Copy</span></button>
+            <button class="sql-toggle" data-toggle-target="sql-8" aria-expanded="false">Show SQL</button>
+          </div>
+        </div>
+        <pre class="sql-body collapsed" id="sql-8"><code class="language-sql">
+-- Sales reps ranked by completed revenue
+-- Returns the sum of all completed sales for each sales rep.
+WITH rep_revenue AS (
+  SELECT
+    CONCAT(sr.first_name, ' ', sr.last_name) AS sales_rep,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
+  FROM orders o
+  JOIN order_items oi ON oi.order_id = o.order_id
+  JOIN sales_reps  sr ON sr.rep_id   = o.rep_id
+  WHERE o.status = 'completed'
+  GROUP BY sr.rep_id, sr.first_name, sr.last_name
+)
+SELECT
+  sales_rep,
+  total_revenue
+FROM rep_revenue
+ORDER BY total_revenue DESC;
+</code></pre>
+      </div>
+    </div>
+    <div class="text-col">
+      <h2>Top Sales Reps by Revenue</h2>
+      <p>Each sales rep ranked by total completed revenue. A flat ranking that exposes how performance is distributed
+        across the team — and where any concentration risk sits.</p>
+      <div class="insight">
+        <span class="insight-label">Key insight</span>
+        <p>Performance is healthily distributed. <strong>David Nguyen leads at 1,5 M€</strong>, with <strong>Rachel
+            Thornton close behind at 1,25 M€</strong> — so the top of the team isn't a single dependency but a two-person
+          anchor. A second strong tier (Kevin, Marcus, Maria, James, Sarah) all clear 800 K€ each, showing the playbook
+          scales across at least seven reps rather than resting on any one performer. The bottom three (Emily, Camille,
+          Raj) are the three most recent hires — all joined within the last 18 months — so the tail likely reflects ramp
+          time, not ability. The real question for leadership: when those three reach full ramp, can the business
+          sustain the close-rates per rep that the top tier is currently delivering?</p>
+      </div>
+    </div>
+  </section>
+
+<!-- Section 9 (was 10: Discount vs Revenue) -->
+  <section class="section story" id="section-9" data-section-index="9">
+    <div class="embed-col">
+      <div class="embed-wrap">
+        <iframe data-embed-key="discountVsRevenue" src="about:blank" title="Discount Rate vs Revenue per Rep"
+          frameborder="0" allowtransparency></iframe>
+      </div>
+      <div class="sql-block">
+        <div class="sql-header">
+          <span class="sql-label">SQL</span>
+          <div class="sql-actions">
+            <button class="sql-copy" data-copy-target="sql-9" aria-label="Copy SQL"><i
+                data-lucide="copy"></i><span>Copy</span></button>
+            <button class="sql-toggle" data-toggle-target="sql-9" aria-expanded="false">Show SQL</button>
+          </div>
+        </div>
+        <pre class="sql-body collapsed" id="sql-9"><code class="language-sql">
+WITH rep_stats AS (
+  SELECT
+    CONCAT(sr.first_name, ' ', sr.last_name) AS sales_rep,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue,
+    AVG(oi.discount_pct) AS avg_discount_pct
+  FROM sales_reps sr
+  JOIN orders      o  ON o.rep_id   = sr.rep_id
+  JOIN order_items oi ON oi.order_id = o.order_id
+  WHERE o.status = 'completed'
+  GROUP BY sr.rep_id, sr.first_name, sr.last_name
+),
+medians AS (
+  -- MySQL has no PERCENTILE_CONT; approximate median by the midpoint of ordered rows.
+  SELECT
+    (SELECT AVG(total_revenue)    FROM rep_stats) AS median_revenue,
+    (SELECT AVG(avg_discount_pct) FROM rep_stats) AS median_discount
+  FROM DUAL
+)
+SELECT
+  r.sales_rep,
+  r.total_revenue,
+  ROUND(r.avg_discount_pct, 2) AS avg_discount_pct,
+  CASE
+    WHEN r.total_revenue >= m.median_revenue AND r.avg_discount_pct <  m.median_discount THEN 'Value seller'
+    WHEN r.total_revenue >= m.median_revenue AND r.avg_discount_pct >= m.median_discount THEN 'Volume discounter'
+    WHEN r.total_revenue <  m.median_revenue AND r.avg_discount_pct <  m.median_discount THEN 'Efficient builder'
+    ELSE 'Underperformer'
+  END AS selling_style
+FROM rep_stats r
+CROSS JOIN medians m
+ORDER BY r.total_revenue DESC;
+
+-- For future use per-rep revenue and average discount, categorised into four quadrants
+-- using the median of each metric as the split point.
+-- The `selling_style` label turns a scatter plot into an actionable segmentation:
+--   "Value seller"        — above-median revenue, below-median discount (study + replicate)
+--   "Volume discounter"   — above-median revenue, above-median discount (margin risk)
+--   "Efficient builder"   — below-median revenue, below-median discount (developing talent)
+--   "Underperformer"      — below-median revenue, above-median discount (coach or exit)
+</code></pre>
+      </div>
+    </div>
+    <div class="text-col">
+      <h2>Discount Rate vs Revenue per Rep</h2>
+      <p>For each sales rep, their total revenue plotted against their average discount rate, classified into four
+        quadrants via a <code>CASE</code> statement keyed on the team medians. This turns a scatter plot into a
+        segmentation the business can act on directly.</p>
+      <div class="insight">
+        <span class="insight-label">Key insight</span>
+        <p>The team's top-line leader, <strong>David Nguyen, is a classic "volume discounter"</strong> — 1,5 M€ in
+          revenue, but at an average 8,9% discount. The revenue is real, but so is the margin cost. The rep worth
+          studying is <strong>Anika Patel</strong>: fewer deals, but the <strong>lowest average discount on the team at
+            0,5%</strong> while still posting meaningful revenue. She's the textbook "value seller" — winning on
+          positioning, not price. <strong>Kevin Okafor</strong> and <strong>Maria Gonzalez</strong> are also worth
+          calling out: both clear 900 K€+ at under 3% average discount, suggesting the value-selling motion scales beyond
+          any single top performer. The operational question is whether their playbook can be codified and taught to the
+          volume discounters to lift team-wide margin without sacrificing top-line revenue.</p>
+      </div>
+    </div>
+  </section>
+
+<!-- Section 10 (was 6: Rep Ramp Curves) -->
+  <section class="section story" id="section-10" data-section-index="10">
+    <div class="embed-col">
+      <div class="embed-wrap">
+        <iframe data-embed-key="repRampCurves" src="about:blank" title="Sales Rep Ramp Curves" frameborder="0"
+          allowtransparency></iframe>
+      </div>
+      <div class="sql-block">
+        <div class="sql-header">
+          <span class="sql-label">SQL</span>
+          <div class="sql-actions">
+            <button class="sql-copy" data-copy-target="sql-10" aria-label="Copy SQL"><i
+                data-lucide="copy"></i><span>Copy</span></button>
+            <button class="sql-toggle" data-toggle-target="sql-10" aria-expanded="false">Show SQL</button>
+          </div>
+        </div>
+        <pre class="sql-body collapsed" id="sql-10"><code class="language-sql">-- Sales rep ramp curves: cumulative revenue plotted against months-since-hire.
+-- Reveals how long it takes a new hire to become productive, and whether
+-- recent cohorts are ramping faster or slower than the original team.
+--
+-- The window function SUM() OVER (PARTITION BY ... ORDER BY ...) builds the
+-- running cumulative, one row per rep per month-since-hire, ready to chart.
+
+WITH rep_monthly AS (
+  -- Revenue per rep per calendar month
+  SELECT
+    sr.rep_id,
+    CONCAT(sr.first_name, ' ', sr.last_name) AS sales_rep,
+    sr.hire_date,
+    DATE_FORMAT(o.order_date, '%Y-%m-01') AS order_month,
+    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS monthly_revenue
+  FROM sales_reps sr
+  JOIN orders      o  ON o.rep_id      = sr.rep_id
+  JOIN order_items oi ON oi.order_id   = o.order_id
+  WHERE o.status = 'completed'
+  GROUP BY sr.rep_id, sr.first_name, sr.last_name, sr.hire_date,
+           DATE_FORMAT(o.order_date, '%Y-%m-01')
+)
+SELECT
+  sales_rep,
+  TIMESTAMPDIFF(MONTH, hire_date, order_month) AS months_since_hire,
+  monthly_revenue,
+  SUM(monthly_revenue) OVER (
+    PARTITION BY rep_id
+    ORDER BY order_month
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+  ) AS cumulative_revenue
+FROM rep_monthly
+WHERE TIMESTAMPDIFF(MONTH, hire_date, order_month) >= 0
+ORDER BY sales_rep, months_since_hire;</code></pre>
+      </div>
+    </div>
+    <div class="text-col">
+      <h2>Sales Rep Ramp Curves</h2>
+      <p>For every sales rep, we plot cumulative revenue against months since their hire date. The curves reveal how
+        quickly a new hire becomes productive — and, by comparing slopes, whether more recent hiring cohorts are ramping
+        faster or slower than the original team.</p>
+      <div class="insight">
+        <span class="insight-label">Key insight</span>
+        <p>The median rep takes roughly <strong>22 months to close their first cumulative 500 K€</strong>. But the spread
+          is wide and getting narrower: <strong>Marcus Rivera hit that milestone in 13 months</strong>, a genuine
+          outlier — nearly twice as fast as the team's earliest hires, Sarah Mitchell and James Carter (both took 42–43
+          months). Notably, David Nguyen (the team's top total earner) took a middle-of-the-pack 24 months, reinforcing
+          the earlier finding that his revenue comes from volume-plus-discount rather than early-career efficiency. The
+          hiring-manager takeaway: newer reps are ramping faster, suggesting either better onboarding, better sales
+          enablement, or a market that's now easier to sell into — all of which should be measured and preserved.</p>
+      </div>
+    </div>
+  </section>
+
+<!-- Section 11 (was 3: Cohort Retention) -->
+  <section class="section story" id="section-11" data-section-index="11">
+    <div class="embed-col">
+      <div class="embed-wrap">
+        <iframe data-embed-key="cohortRetention" src="about:blank" title="Customer Cohort Retention" frameborder="0"
+          allowtransparency></iframe>
+      </div>
+      <div class="sql-block">
+        <div class="sql-header">
+          <span class="sql-label">SQL</span>
+          <div class="sql-actions">
+            <button class="sql-copy" data-copy-target="sql-11" aria-label="Copy SQL"><i
+                data-lucide="copy"></i><span>Copy</span></button>
+            <button class="sql-toggle" data-toggle-target="sql-11" aria-expanded="false">Show SQL</button>
+          </div>
+        </div>
+        <pre class="sql-body collapsed" id="sql-11"><code class="language-sql">-- Customer cohort retention analysis.
 -- For each customer, identify their first-ever completed order month (cohort),
 -- then measure what % of that cohort remains active N months later.
 -- Output is a matrix: rows = cohort_month, columns = months_since_first_order.
@@ -326,426 +796,8 @@ ORDER BY ca.cohort_month, ca.months_since_first;</code></pre>
     </div>
   </section>
 
-  <!-- Section 4 -->
-  <section class="section story" id="section-4" data-section-index="4">
-    <div class="embed-col">
-      <div class="embed-wrap">
-        <iframe data-embed-key="topCustomers" src="about:blank" title="Top 10 Customers by Revenue" frameborder="0"
-          allowtransparency></iframe>
-      </div>
-      <div class="sql-block">
-        <div class="sql-header">
-          <span class="sql-label">SQL</span>
-          <div class="sql-actions">
-            <button class="sql-copy" data-copy-target="sql-4" aria-label="Copy SQL"><i
-                data-lucide="copy"></i><span>Copy</span></button>
-            <button class="sql-toggle" data-toggle-target="sql-4" aria-expanded="false">Show SQL</button>
-          </div>
-        </div>
-        <pre class="sql-body collapsed" id="sql-4"><code class="language-sql">-- Top 10 customers by revenue, with everyone else grouped into "Other".
--- Uses RANK() so the long tail is aggregated in a single pass rather than
--- two separate queries. Helpful for visualising customer concentration.
-
-WITH customer_revenue AS (
-  SELECT
-    c.customer_name,
-    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS revenue
-  FROM orders o
-  JOIN order_items oi ON oi.order_id  = o.order_id
-  JOIN customers   c  ON c.customer_id = o.customer_id
-  WHERE o.status = 'completed'
-  GROUP BY c.customer_name
-),
-ranked AS (
-  SELECT
-    customer_name,
-    revenue,
-    RANK() OVER (ORDER BY revenue DESC) AS rnk
-  FROM customer_revenue
-)
-SELECT
-  CASE 
-    WHEN rnk <= 10 THEN customer_name 
-    ELSE 'Other' 
-  END AS customer_group,
-  SUM(revenue) AS total_revenue
-FROM ranked
-GROUP BY customer_group
-ORDER BY total_revenue DESC;
-</code></pre>
-      </div>
-    </div>
-    <div class="text-col">
-      <h2>Top 10 Customers by Revenue</h2>
-      <p>The ten customers who have contributed the most completed revenue, ranked and grouped — with everyone outside
-        the top ten bucketed into "Other" via a <code>RANK()</code> window function so the long tail is visible on a
-        single chart.</p>
-      <div class="insight">
-        <span class="insight-label">Key insight</span>
-        <p>The top ten customers account for just <strong>21% of total revenue</strong>, with the largest single account
-          at 3,4%. Industry benchmarks for Series A SaaS businesses (2–10 M€ ARR range) target no single customer above
-          20% and top five customers under 50% — this business clears both thresholds comfortably. The revenue base is
-          genuinely broad: 289 paying customers carrying the total, not a handful of whales. The top ten also span
-          <strong>seven different states and eight different industries</strong>, so there's no single geographic or
-          vertical corridor the business is dependent on. For a hiring manager, the signal here is resilience — losing
-          any single account wouldn't move the needle more than a couple of percent.</p>
-        <cite>Benchmark: <a href="https://www.metrichq.org/saas/customer-concentration/" target="_blank"
-            rel="noopener">MetricHQ — SaaS Customer Concentration</a></cite>
-      </div>
-    </div>
-  </section>
-
-  <!-- Section 5 -->
-  <section class="section story" id="section-5" data-section-index="5">
-    <div class="embed-col">
-      <div class="embed-wrap">
-        <iframe data-embed-key="revenueByRegion" src="about:blank" title="Revenue by State" frameborder="0"
-          allowtransparency></iframe>
-      </div>
-      <div class="sql-block">
-        <div class="sql-header">
-          <span class="sql-label">SQL</span>
-          <div class="sql-actions">
-            <button class="sql-copy" data-copy-target="sql-5" aria-label="Copy SQL"><i
-                data-lucide="copy"></i><span>Copy</span></button>
-            <button class="sql-toggle" data-toggle-target="sql-5" aria-expanded="false">Show SQL</button>
-          </div>
-        </div>
-        <pre class="sql-body collapsed" id="sql-5"><code class="language-sql">-- Total completed revenue by customer region.
--- Straight aggregation with a discount-adjusted revenue calculation.
-
-SELECT
-  c.region,
-  SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
-FROM orders o
-JOIN order_items oi ON oi.order_id  = o.order_id
-JOIN customers   c  ON c.customer_id = o.customer_id
-WHERE o.status = 'completed'
-GROUP BY c.region
-ORDER BY total_revenue DESC;
-</code></pre>
-      </div>
-    </div>
-    <div class="text-col">
-      <h2>Revenue by State</h2>
-      <p>Total completed revenue mapped across US states. The chart that shapes sales-territory planning — where the
-        revenue lives is where the next account executive should be based.</p>
-      <div class="insight">
-        <span class="insight-label">Key insight</span>
-        <p>Three states sit in close contention at the top: <strong>New York (12,6%), Texas (12,0%), and California
-            (11,4%)</strong>. Together they produce over a third of revenue, but no single state dominates — the
-          business isn't dependent on any one coast or metro. The <strong>top five states account for 48% of revenue,
-            the top ten for 65%</strong>, with a meaningful long tail of smaller-state customers filling out the rest.
-          For territory planning, the signal is that coverage matters more than concentration: the sales motion works in
-          economically dense states but also lands deals in smaller markets, suggesting the product doesn't require a
-          specific geographic or cultural fit to succeed.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Section 6 -->
-  <section class="section story" id="section-6" data-section-index="6">
-    <div class="embed-col">
-      <div class="embed-wrap">
-        <iframe data-embed-key="repRampCurves" src="about:blank" title="Sales Rep Ramp Curves" frameborder="0"
-          allowtransparency></iframe>
-      </div>
-      <div class="sql-block">
-        <div class="sql-header">
-          <span class="sql-label">SQL</span>
-          <div class="sql-actions">
-            <button class="sql-copy" data-copy-target="sql-6" aria-label="Copy SQL"><i
-                data-lucide="copy"></i><span>Copy</span></button>
-            <button class="sql-toggle" data-toggle-target="sql-6" aria-expanded="false">Show SQL</button>
-          </div>
-        </div>
-        <pre class="sql-body collapsed" id="sql-6"><code class="language-sql">-- Sales rep ramp curves: cumulative revenue plotted against months-since-hire.
--- Reveals how long it takes a new hire to become productive, and whether
--- recent cohorts are ramping faster or slower than the original team.
---
--- The window function SUM() OVER (PARTITION BY ... ORDER BY ...) builds the
--- running cumulative, one row per rep per month-since-hire, ready to chart.
-
-WITH rep_monthly AS (
-  -- Revenue per rep per calendar month
-  SELECT
-    sr.rep_id,
-    CONCAT(sr.first_name, ' ', sr.last_name) AS sales_rep,
-    sr.hire_date,
-    DATE_FORMAT(o.order_date, '%Y-%m-01') AS order_month,
-    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS monthly_revenue
-  FROM sales_reps sr
-  JOIN orders      o  ON o.rep_id      = sr.rep_id
-  JOIN order_items oi ON oi.order_id   = o.order_id
-  WHERE o.status = 'completed'
-  GROUP BY sr.rep_id, sr.first_name, sr.last_name, sr.hire_date,
-           DATE_FORMAT(o.order_date, '%Y-%m-01')
-)
-SELECT
-  sales_rep,
-  TIMESTAMPDIFF(MONTH, hire_date, order_month) AS months_since_hire,
-  monthly_revenue,
-  SUM(monthly_revenue) OVER (
-    PARTITION BY rep_id
-    ORDER BY order_month
-    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-  ) AS cumulative_revenue
-FROM rep_monthly
-WHERE TIMESTAMPDIFF(MONTH, hire_date, order_month) >= 0
-ORDER BY sales_rep, months_since_hire;</code></pre>
-      </div>
-    </div>
-    <div class="text-col">
-      <h2>Sales Rep Ramp Curves</h2>
-      <p>For every sales rep, we plot cumulative revenue against months since their hire date. The curves reveal how
-        quickly a new hire becomes productive — and, by comparing slopes, whether more recent hiring cohorts are ramping
-        faster or slower than the original team.</p>
-      <div class="insight">
-        <span class="insight-label">Key insight</span>
-        <p>The median rep takes roughly <strong>22 months to close their first cumulative 500 K€</strong>. But the spread
-          is wide and getting narrower: <strong>Marcus Rivera hit that milestone in 13 months</strong>, a genuine
-          outlier — nearly twice as fast as the team's earliest hires, Sarah Mitchell and James Carter (both took 42–43
-          months). Notably, David Nguyen (the team's top total earner) took a middle-of-the-pack 24 months, reinforcing
-          the earlier finding that his revenue comes from volume-plus-discount rather than early-career efficiency. The
-          hiring-manager takeaway: newer reps are ramping faster, suggesting either better onboarding, better sales
-          enablement, or a market that's now easier to sell into — all of which should be measured and preserved.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Section 7 -->
-  <section class="section story" id="section-7" data-section-index="7">
-    <div class="embed-col">
-      <div class="embed-wrap">
-        <iframe data-embed-key="topProducts" src="about:blank" title="Best Selling Products" frameborder="0"
-          allowtransparency></iframe>
-      </div>
-      <div class="sql-block">
-        <div class="sql-header">
-          <span class="sql-label">SQL</span>
-          <div class="sql-actions">
-            <button class="sql-copy" data-copy-target="sql-7" aria-label="Copy SQL"><i
-                data-lucide="copy"></i><span>Copy</span></button>
-            <button class="sql-toggle" data-toggle-target="sql-7" aria-expanded="false">Show SQL</button>
-          </div>
-        </div>
-        <pre class="sql-body collapsed" id="sql-7"><code class="language-sql">-- Products ranked by total completed revenue.
--- The ORDER BY exposes the shape of the distribution even without a LIMIT,
--- so the chart can decide how many top entries to visualise.
-
-SELECT
-  p.product_name,
-  SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
-FROM orders o
-JOIN order_items oi ON oi.order_id   = o.order_id
-JOIN products    p  ON p.product_id  = oi.product_id
-WHERE o.status = 'completed'
-GROUP BY p.product_name
-ORDER BY total_revenue DESC;
-</code></pre>
-      </div>
-    </div>
-    <div class="text-col">
-      <h2>Best Selling Products</h2>
-      <p>Products ranked by total revenue contribution. This is the product-mix reality check: is the business selling
-        what leadership thinks it's selling, or is the real driver something else entirely?</p>
-      <div class="insight">
-        <span class="insight-label">Key insight</span>
-        <p>The two <strong>CorePlatform licenses (Standard and Premium) combine to drive the majority of
-            revenue</strong>, with the <strong>Premium tier pulling ahead of Standard</strong> — a signal that upmarket
-          pricing is working, not a discount-to-close pattern. The strongest add-ons are Security Suite, Data Warehouse
-          Connector, and Analytics Module, each contributing meaningfully without any one dominating. That's a healthy
-          pattern: customers are buying the core product first and expanding with add-ons, which is exactly how SaaS
-          contract values grow over time.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Section 8 -->
-  <section class="section story" id="section-8" data-section-index="8">
-    <div class="embed-col">
-      <div class="embed-wrap">
-        <iframe data-embed-key="avgDealSize" src="about:blank" title="Average Deal Size by Industry" frameborder="0"
-          allowtransparency></iframe>
-      </div>
-      <div class="sql-block">
-        <div class="sql-header">
-          <span class="sql-label">SQL</span>
-          <div class="sql-actions">
-            <button class="sql-copy" data-copy-target="sql-8" aria-label="Copy SQL"><i
-                data-lucide="copy"></i><span>Copy</span></button>
-            <button class="sql-toggle" data-toggle-target="sql-8" aria-expanded="false">Show SQL</button>
-          </div>
-        </div>
-        <pre class="sql-body collapsed" id="sql-8"><code class="language-sql">-- Average revenue per line-item by customer industry.
--- Using AVG on the line-item level gives a per-product-line deal size;
--- industries with larger average values are the ones with enterprise-style buying patterns.
-
-SELECT
-  c.industry,
-  AVG(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS avg_deal_size
-FROM orders o
-JOIN order_items oi ON oi.order_id  = o.order_id
-JOIN customers   c  ON c.customer_id = o.customer_id
-WHERE o.status = 'completed'
-GROUP BY c.industry
-ORDER BY avg_deal_size DESC;
-</code></pre>
-      </div>
-    </div>
-    <div class="text-col">
-      <h2>Average Deal Size by Industry</h2>
-      <p>Industries ranked by the average revenue per completed line item. Where the Revenue by Industry view shows
-        <em>volume</em>, this view shows <em>intensity</em> — some industries buy less frequently but spend
-        substantially more per transaction.
-      </p>
-      <div class="insight">
-        <span class="insight-label">Key insight</span>
-        <p>The industries with the highest average line values (Media &amp; Entertainment, Nonprofit, Transportation,
-          Education) aren't the ones with the highest total revenue. That's the tell for enterprise-style buying
-          behaviour — fewer accounts, bigger deals, longer cycles. Financial Services leads on total revenue without
-          leading on average deal size, which means volume, not whale-hunting, is driving its position. Each motion
-          calls for a different playbook: enterprise targeting for the high-average verticals, velocity for the
-          high-volume ones. Mismatching the two is one of the most common go-to-market errors, and this chart is the
-          starting point for avoiding it.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Section 9 -->
-  <section class="section story" id="section-9" data-section-index="9">
-    <div class="embed-col">
-      <div class="embed-wrap">
-        <iframe data-embed-key="topSalesReps" src="about:blank" title="Top Sales Reps by Revenue" frameborder="0"
-          allowtransparency></iframe>
-      </div>
-      <div class="sql-block">
-        <div class="sql-header">
-          <span class="sql-label">SQL</span>
-          <div class="sql-actions">
-            <button class="sql-copy" data-copy-target="sql-9" aria-label="Copy SQL"><i
-                data-lucide="copy"></i><span>Copy</span></button>
-            <button class="sql-toggle" data-toggle-target="sql-9" aria-expanded="false">Show SQL</button>
-          </div>
-        </div>
-        <pre class="sql-body collapsed" id="sql-9"><code class="language-sql">
--- Sales reps ranked by completed revenue
--- Returns the sum of all completed sales for each sales rep.
-WITH rep_revenue AS (
-  SELECT
-    CONCAT(sr.first_name, ' ', sr.last_name) AS sales_rep,
-    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
-  FROM orders o
-  JOIN order_items oi ON oi.order_id = o.order_id
-  JOIN sales_reps  sr ON sr.rep_id   = o.rep_id
-  WHERE o.status = 'completed'
-  GROUP BY sr.rep_id, sr.first_name, sr.last_name
-)
-SELECT
-  sales_rep,
-  total_revenue
-FROM rep_revenue
-ORDER BY total_revenue DESC;
-</code></pre>
-      </div>
-    </div>
-    <div class="text-col">
-      <h2>Top Sales Reps by Revenue</h2>
-      <p>Each sales rep ranked by total completed revenue. A flat ranking that exposes how performance is distributed
-        across the team — and where any concentration risk sits.</p>
-      <div class="insight">
-        <span class="insight-label">Key insight</span>
-        <p>Performance is healthily distributed. <strong>David Nguyen leads at 1,5 M€</strong>, with <strong>Rachel
-            Thornton close behind at 1,25 M€</strong> — so the top of the team isn't a single dependency but a two-person
-          anchor. A second strong tier (Kevin, Marcus, Maria, James, Sarah) all clear 800 K€ each, showing the playbook
-          scales across at least seven reps rather than resting on any one performer. The bottom three (Emily, Camille,
-          Raj) are the three most recent hires — all joined within the last 18 months — so the tail likely reflects ramp
-          time, not ability. The real question for leadership: when those three reach full ramp, can the business
-          sustain the close-rates per rep that the top tier is currently delivering?</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Section 10 -->
-  <section class="section story" id="section-10" data-section-index="10">
-    <div class="embed-col">
-      <div class="embed-wrap">
-        <iframe data-embed-key="discountVsRevenue" src="about:blank" title="Discount Rate vs Revenue per Rep"
-          frameborder="0" allowtransparency></iframe>
-      </div>
-      <div class="sql-block">
-        <div class="sql-header">
-          <span class="sql-label">SQL</span>
-          <div class="sql-actions">
-            <button class="sql-copy" data-copy-target="sql-10" aria-label="Copy SQL"><i
-                data-lucide="copy"></i><span>Copy</span></button>
-            <button class="sql-toggle" data-toggle-target="sql-10" aria-expanded="false">Show SQL</button>
-          </div>
-        </div>
-        <pre class="sql-body collapsed" id="sql-10"><code class="language-sql">
-WITH rep_stats AS (
-  SELECT
-    CONCAT(sr.first_name, ' ', sr.last_name) AS sales_rep,
-    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue,
-    AVG(oi.discount_pct) AS avg_discount_pct
-  FROM sales_reps sr
-  JOIN orders      o  ON o.rep_id   = sr.rep_id
-  JOIN order_items oi ON oi.order_id = o.order_id
-  WHERE o.status = 'completed'
-  GROUP BY sr.rep_id, sr.first_name, sr.last_name
-),
-medians AS (
-  -- MySQL has no PERCENTILE_CONT; approximate median by the midpoint of ordered rows.
-  SELECT
-    (SELECT AVG(total_revenue)    FROM rep_stats) AS median_revenue,
-    (SELECT AVG(avg_discount_pct) FROM rep_stats) AS median_discount
-  FROM DUAL
-)
-SELECT
-  r.sales_rep,
-  r.total_revenue,
-  ROUND(r.avg_discount_pct, 2) AS avg_discount_pct,
-  CASE
-    WHEN r.total_revenue >= m.median_revenue AND r.avg_discount_pct <  m.median_discount THEN 'Value seller'
-    WHEN r.total_revenue >= m.median_revenue AND r.avg_discount_pct >= m.median_discount THEN 'Volume discounter'
-    WHEN r.total_revenue <  m.median_revenue AND r.avg_discount_pct <  m.median_discount THEN 'Efficient builder'
-    ELSE 'Underperformer'
-  END AS selling_style
-FROM rep_stats r
-CROSS JOIN medians m
-ORDER BY r.total_revenue DESC;
-
--- For future use per-rep revenue and average discount, categorised into four quadrants
--- using the median of each metric as the split point.
--- The `selling_style` label turns a scatter plot into an actionable segmentation:
---   "Value seller"        — above-median revenue, below-median discount (study + replicate)
---   "Volume discounter"   — above-median revenue, above-median discount (margin risk)
---   "Efficient builder"   — below-median revenue, below-median discount (developing talent)
---   "Underperformer"      — below-median revenue, above-median discount (coach or exit)
-</code></pre>
-      </div>
-    </div>
-    <div class="text-col">
-      <h2>Discount Rate vs Revenue per Rep</h2>
-      <p>For each sales rep, their total revenue plotted against their average discount rate, classified into four
-        quadrants via a <code>CASE</code> statement keyed on the team medians. This turns a scatter plot into a
-        segmentation the business can act on directly.</p>
-      <div class="insight">
-        <span class="insight-label">Key insight</span>
-        <p>The team's top-line leader, <strong>David Nguyen, is a classic "volume discounter"</strong> — 1,5 M€ in
-          revenue, but at an average 8,9% discount. The revenue is real, but so is the margin cost. The rep worth
-          studying is <strong>Anika Patel</strong>: fewer deals, but the <strong>lowest average discount on the team at
-            0,5%</strong> while still posting meaningful revenue. She's the textbook "value seller" — winning on
-          positioning, not price. <strong>Kevin Okafor</strong> and <strong>Maria Gonzalez</strong> are also worth
-          calling out: both clear 900 K€+ at under 3% average discount, suggesting the value-selling motion scales beyond
-          any single top performer. The operational question is whether their playbook can be codified and taught to the
-          volume discounters to lift team-wide margin without sacrificing top-line revenue.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Section 11 -->
-  <section class="section story" id="section-11" data-section-index="11">
+<!-- Section 12 (was 11: Revenue at Risk) -->
+  <section class="section story" id="section-12" data-section-index="12">
     <div class="embed-col">
       <div class="embed-wrap">
         <iframe data-embed-key="revenueAtRisk" src="about:blank" title="Revenue at Risk" frameborder="0"
@@ -755,12 +807,12 @@ ORDER BY r.total_revenue DESC;
         <div class="sql-header">
           <span class="sql-label">SQL</span>
           <div class="sql-actions">
-            <button class="sql-copy" data-copy-target="sql-11" aria-label="Copy SQL"><i
+            <button class="sql-copy" data-copy-target="sql-12" aria-label="Copy SQL"><i
                 data-lucide="copy"></i><span>Copy</span></button>
-            <button class="sql-toggle" data-toggle-target="sql-11" aria-expanded="false">Show SQL</button>
+            <button class="sql-toggle" data-toggle-target="sql-12" aria-expanded="false">Show SQL</button>
           </div>
         </div>
-        <pre class="sql-body collapsed" id="sql-11"><code class="language-sql">-- Revenue at Risk: which historically-valuable customers have gone quiet?
+        <pre class="sql-body collapsed" id="sql-12"><code class="language-sql">-- Revenue at Risk: which historically-valuable customers have gone quiet?
 -- For each customer, measure days since their most recent completed order
 -- and classify them into a risk tier. The output is a prioritised action list
 -- sorted by historical lifetime revenue — the accounts worth saving first.
@@ -822,62 +874,6 @@ ORDER BY
           skews toward <strong>Financial Services and Manufacturing accounts in Florida, Texas, and New York</strong> —
           suggesting a targeted re-engagement play rather than a scattershot campaign. This is the kind of output that
           turns a dashboard into a to-do list.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Section 12 -->
-  <section class="section story" id="section-12" data-section-index="12">
-    <div class="embed-col">
-      <div class="embed-wrap">
-        <iframe data-embed-key="productMix" src="about:blank" title="Revenue by Product Category" frameborder="0"
-          allowtransparency></iframe>
-      </div>
-      <div class="sql-block">
-        <div class="sql-header">
-          <span class="sql-label">SQL</span>
-          <div class="sql-actions">
-            <button class="sql-copy" data-copy-target="sql-12" aria-label="Copy SQL"><i
-                data-lucide="copy"></i><span>Copy</span></button>
-            <button class="sql-toggle" data-toggle-target="sql-12" aria-expanded="false">Show SQL</button>
-          </div>
-        </div>
-        <pre class="sql-body collapsed" id="sql-12"><code class="language-sql">-- Completed revenue grouped by product category, with each category's share
--- of total revenue added as a % column via a window function.
--- Useful for answering "how platform-led is the business?" at a glance.
-
-WITH category_revenue AS (
-  SELECT
-    p.category,
-    SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100)) AS total_revenue
-  FROM orders o
-  JOIN order_items oi ON oi.order_id  = o.order_id
-  JOIN products    p  ON p.product_id = oi.product_id
-  WHERE o.status = 'completed'
-  GROUP BY p.category
-)
-SELECT
-  category,
-  total_revenue,
-  ROUND(total_revenue / SUM(total_revenue) OVER () * 100, 1) AS pct_of_total
-FROM category_revenue
-ORDER BY total_revenue DESC;</code></pre>
-      </div>
-    </div>
-    <div class="text-col">
-      <h2>Revenue by Product Category</h2>
-      <p>Total completed revenue split across the four product categories: platform, add-ons, integrations, and
-        services. With each category's share of total added via a <code>SUM() OVER ()</code> window, the chart closes
-        the report by answering — what does the business <em>actually</em> sell, at the category level?</p>
-      <div class="insight">
-        <span class="insight-label">Key insight</span>
-        <p><strong>Platform licenses drive 71% of revenue</strong>, with add-ons and integrations together contributing
-          26%, and services trailing at under 4%. That's a textbook-healthy SaaS mix: the core product leads, expansion
-          products layer on, and services stay lean — they support onboarding without dominating. The low services share
-          signals a scalable product, one that delivers value without heavy human configuration. The strategic takeaway
-          is clear: continued investment should reinforce the platform first and expand the add-on catalog second, while
-          keeping services as a sales enabler rather than letting it become a growing revenue stream that caps
-          scalability.</p>
       </div>
     </div>
   </section>
