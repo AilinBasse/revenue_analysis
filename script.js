@@ -38,10 +38,6 @@ const EMBEDS = {
 
 /* -------------------------------------------------------------------
    2. INJECT IFRAME SRCS
-   -------------------------------------------------------------------
-   Skip injection while placeholders are still present so the embed
-   placeholder text (from CSS ::before) remains visible. Once the
-   author fills in real URLs, iframes load automatically.
 ------------------------------------------------------------------- */
 function loadEmbeds() {
   const iframes = document.querySelectorAll('iframe[data-embed-key]');
@@ -49,7 +45,6 @@ function loadEmbeds() {
     const key = frame.dataset.embedKey;
     const url = EMBEDS[key];
     if (!url) return;
-    // Do not load if URL still contains placeholder tokens
     if (url.includes('REPLACE-ME') || url.includes('REPLACE-WITH-UUID')) return;
     frame.src = url;
   });
@@ -72,8 +67,6 @@ function initScrollAnimations() {
       });
     },
     {
-      // Fires when ~15% of the section is in view, providing a smoother
-      // bidirectional fade rather than popping at the very edge.
       threshold: 0.15,
       rootMargin: '0px 0px -10% 0px',
     }
@@ -87,13 +80,9 @@ function initScrollAnimations() {
 ------------------------------------------------------------------- */
 function initNavDots() {
   const navDots = document.getElementById('navDots');
-  // Nav dots represent story sections only — the tech stack section
-  // sits between hero and story 1 but isn't part of the scrolling narrative,
-  // so we exclude it from dot nav via :not(.techstack).
   const sections = document.querySelectorAll('.section:not(.techstack)');
   if (!navDots || !sections.length) return;
 
-  // Build one dot per section
   sections.forEach((sec, i) => {
     const btn = document.createElement('button');
     btn.className = 'nav-dot';
@@ -108,7 +97,6 @@ function initNavDots() {
     navDots.appendChild(btn);
   });
 
-  // Highlight active dot based on which section is most in view
   const dots = navDots.querySelectorAll('.nav-dot');
   const activeObserver = new IntersectionObserver(
     (entries) => {
@@ -125,7 +113,6 @@ function initNavDots() {
   );
   sections.forEach((s) => activeObserver.observe(s));
 
-  // Nav background opacifies once user scrolls past hero
   const topnav = document.getElementById('topnav');
   window.addEventListener('scroll', () => {
     topnav?.classList.toggle('scrolled', window.scrollY > 40);
@@ -136,7 +123,6 @@ function initNavDots() {
    5. SQL TOGGLE + COPY
 ------------------------------------------------------------------- */
 function initSqlBlocks() {
-  // Toggle show/hide
   document.querySelectorAll('.sql-toggle').forEach((btn) => {
     btn.addEventListener('click', () => {
       const targetId = btn.dataset.toggleTarget;
@@ -148,7 +134,6 @@ function initSqlBlocks() {
     });
   });
 
-  // Copy to clipboard
   document.querySelectorAll('.sql-copy').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const targetId = btn.dataset.copyTarget;
@@ -176,7 +161,20 @@ function flashCopyState(btn, msg) {
 
 /* -------------------------------------------------------------------
    6. INIT EVERYTHING ON DOM READY
+   -------------------------------------------------------------------
+   The icon retry handles a known race: the Lucide CDN script may not
+   have finished loading by DOMContentLoaded, especially on slower
+   connections. We attempt creation immediately and retry up to 4 times
+   if window.lucide isn't available yet.
 ------------------------------------------------------------------- */
+function renderLucideIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
+    return true;
+  }
+  return false;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   loadEmbeds();
   initScrollAnimations();
@@ -190,8 +188,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // lucide icons
-  if (window.lucide) {
-    window.lucide.createIcons();
+  // Lucide icons — try immediately, retry if CDN hasn't loaded yet.
+  if (!renderLucideIcons()) {
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts += 1;
+      if (renderLucideIcons() || attempts >= 4) {
+        clearInterval(interval);
+      }
+    }, 200);
   }
 });

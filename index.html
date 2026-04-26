@@ -18,16 +18,15 @@
   <!-- highlight.js dark theme for SQL syntax highlighting -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
 
-  <!-- Lucide icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Lucide icons (pinned version + defer to ensure DOM ready before icon scan) -->
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
 
   <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
 
-  <!-- ================= NAV =================
-       Fixed top nav. Title left, dot nav right. Dots auto-generated in script.js. -->
+  <!-- ================= NAV ================= -->
   <nav id="topnav" class="topnav">
     <div class="nav-title">Revenue Analytics</div>
     <div class="nav-dots" id="navDots" aria-label="Section navigation"></div>
@@ -80,10 +79,7 @@
     </div>
   </section>
 
-  <!-- ================= TECH STACK =================
-       Transitional section between hero and story. Shorter than a full
-       story section — just a grid of tool cards. Placed here so recruiters
-       skimming the top of the page get the stack at a glance. -->
+  <!-- ================= TECH STACK ================= -->
   <section class="section techstack" id="techstack" data-section-index="0.5">
     <div class="techstack-inner">
       <div class="techstack-header">
@@ -94,6 +90,7 @@
       <div class="techstack-grid">
 
         <div class="stack-card">
+          <span class="stack-card-index">01</span>
           <div class="stack-card-tool">MySQL</div>
           <div class="stack-card-role">Data source</div>
           <p>Relational store for a normalised B2B SaaS schema — customers, orders, order items, products, sales reps.
@@ -102,6 +99,7 @@
         </div>
 
         <div class="stack-card">
+          <span class="stack-card-index">02</span>
           <div class="stack-card-tool">Docker</div>
           <div class="stack-card-role">Environment</div>
           <p>Runs MySQL and Metabase as isolated containers with one command. Makes the entire analytics stack
@@ -109,6 +107,7 @@
         </div>
 
         <div class="stack-card">
+          <span class="stack-card-index">03</span>
           <div class="stack-card-tool">Metabase</div>
           <div class="stack-card-role">BI &amp; visualisation</div>
           <p>Open-source BI layer handling charting, public embeds, and query management. Faster than rebuilding a
@@ -117,6 +116,7 @@
         </div>
 
         <div class="stack-card">
+          <span class="stack-card-index">04</span>
           <div class="stack-card-tool">ngrok</div>
           <div class="stack-card-role">Tunnel</div>
           <p>Exposes the local Metabase instance to the public internet over HTTPS so iframes work from a static site. A
@@ -124,6 +124,7 @@
         </div>
 
         <div class="stack-card">
+          <span class="stack-card-index">05</span>
           <div class="stack-card-tool">GitHub Pages</div>
           <div class="stack-card-role">Hosting</div>
           <p>Free static hosting wired directly to the repo — every <code>git push</code> redeploys the site in under a
@@ -131,6 +132,7 @@
         </div>
 
         <div class="stack-card">
+          <span class="stack-card-index">06</span>
           <div class="stack-card-tool">HTML · CSS · JS</div>
           <div class="stack-card-role">Frontend</div>
           <p>Used Claude Code to help me design and build this page. No framework, no build step, no dependencies.
@@ -142,11 +144,7 @@
     </div>
   </section>
 
-  <!-- ================= STORY SECTIONS =================
-       Layout alternates every other section via :nth-of-type(even) in CSS.
-       Each section has an embed column (chart + SQL) and a text column (title + description + insight).
-       SQL blocks start collapsed; toggle wires up in script.js.
-  -->
+  <!-- ================= STORY SECTIONS ================= -->
 
   <!-- Section 1 -->
   <section class="section story" id="section-1" data-section-index="1">
@@ -179,13 +177,12 @@ WHERE o.status = 'completed';
         × unit_price × (1 − discount/100).
         Filtered to status='completed' so pending and cancelled orders are excluded. This is true for all following
         revenue calculations.</p>
-      <p></p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Completed revenue sits at <strong>$8.83M across 1,079 orders</strong>, delivered to <strong>289 paying
+        <p>Completed revenue sits at <strong>8,83 M€ across 1,079 orders</strong>, delivered to <strong>289 paying
             customers</strong> over roughly four years of trading. The business is past proof-of-concept and at the
           scale where patterns in the data — concentration, growth, product mix — are statistically meaningful rather
-          than anecdotal. The next eleven sections break that $8.83M apart to see what's actually driving it.</p>
+          than anecdotal. The next eleven sections break that 8,83 M€ apart to see what's actually driving it.</p>
       </div>
     </div>
   </section>
@@ -220,7 +217,7 @@ WITH yearly AS (
 )
 SELECT
   year,
-  revenue,
+  revenue
 FROM yearly
 ORDER BY year;
 </code></pre>
@@ -233,10 +230,10 @@ ORDER BY year;
       </p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Revenue scaled from <strong>$378K in 2021 to $3.96M in 2024</strong>, with YoY growth rates of <strong>+206%
+        <p>Revenue scaled from <strong>378 K€ in 2021 to 3,96 M€ in 2024</strong>, with YoY growth rates of <strong>+206%
             → +117% → +57%</strong>. That's a classically healthy maturation curve — triple-digit growth in the early
           scaling years giving way to strong but decelerating growth as the addressable market gets more saturated. The
-          2024 figure of +57% on a $2.5M base is the more meaningful signal: the business is still compounding at
+          2024 figure of +57% on a 2,5 M€ base is the more meaningful signal: the business is still compounding at
           venture-scale rates, not plateauing. <em>Note: 2025 figures cover Q1 only, so the apparent drop is a
             data-window artifact, not a trend.</em></p>
       </div>
@@ -386,12 +383,14 @@ ORDER BY total_revenue DESC;
       <div class="insight">
         <span class="insight-label">Key insight</span>
         <p>The top ten customers account for just <strong>21% of total revenue</strong>, with the largest single account
-          at 3.4%. That's a remarkably healthy concentration profile — most B2B businesses at this stage show 40–50%+ in
-          the top ten. The revenue base is genuinely broad: 289 paying customers carrying the total, not a handful of
-          whales. The top ten also span <strong>seven different states and eight different industries</strong>, so
-          there's no single geographic or vertical corridor the business is dependent on. For a hiring manager, the
-          signal here is resilience — losing any single account wouldn't move the needle more than a couple of percent.
-        </p>
+          at 3,4%. Industry benchmarks for Series A SaaS businesses (2–10 M€ ARR range) target no single customer above
+          20% and top five customers under 50% — this business clears both thresholds comfortably. The revenue base is
+          genuinely broad: 289 paying customers carrying the total, not a handful of whales. The top ten also span
+          <strong>seven different states and eight different industries</strong>, so there's no single geographic or
+          vertical corridor the business is dependent on. For a hiring manager, the signal here is resilience — losing
+          any single account wouldn't move the needle more than a couple of percent.</p>
+        <cite>Benchmark: <a href="https://www.metrichq.org/saas/customer-concentration/" target="_blank"
+            rel="noopener">MetricHQ — SaaS Customer Concentration</a></cite>
       </div>
     </div>
   </section>
@@ -433,8 +432,8 @@ ORDER BY total_revenue DESC;
         revenue lives is where the next account executive should be based.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Three states sit in close contention at the top: <strong>New York (12.6%), Texas (12.0%), and California
-            (11.4%)</strong>. Together they produce over a third of revenue, but no single state dominates — the
+        <p>Three states sit in close contention at the top: <strong>New York (12,6%), Texas (12,0%), and California
+            (11,4%)</strong>. Together they produce over a third of revenue, but no single state dominates — the
           business isn't dependent on any one coast or metro. The <strong>top five states account for 48% of revenue,
             the top ten for 65%</strong>, with a meaningful long tail of smaller-state customers filling out the rest.
           For territory planning, the signal is that coverage matters more than concentration: the sales motion works in
@@ -503,7 +502,7 @@ ORDER BY sales_rep, months_since_hire;</code></pre>
         faster or slower than the original team.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>The median rep takes roughly <strong>22 months to close their first cumulative $500K</strong>. But the spread
+        <p>The median rep takes roughly <strong>22 months to close their first cumulative 500 K€</strong>. But the spread
           is wide and getting narrower: <strong>Marcus Rivera hit that milestone in 13 months</strong>, a genuine
           outlier — nearly twice as fast as the team's earliest hires, Sarah Mitchell and James Carter (both took 42–43
           months). Notably, David Nguyen (the team's top total earner) took a middle-of-the-pack 24 months, reinforcing
@@ -652,15 +651,13 @@ ORDER BY total_revenue DESC;
     </div>
     <div class="text-col">
       <h2>Top Sales Reps by Revenue</h2>
-      <p>Each sales rep ranked by total completed revenue, with two analytical columns added via
-        <code>AVG() OVER ()</code>: the team average and each rep's variance from it. Turns a flat ranking into a
-        performance distribution view.
-      </p>
+      <p>Each sales rep ranked by total completed revenue. A flat ranking that exposes how performance is distributed
+        across the team — and where any concentration risk sits.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>Performance is healthily distributed. <strong>David Nguyen leads at $1.5M</strong>, with <strong>Rachel
-            Thornton close behind at $1.25M</strong> — so the top of the team isn't a single dependency but a two-person
-          anchor. A second strong tier (Kevin, Marcus, Maria, James, Sarah) all clear $800K each, showing the playbook
+        <p>Performance is healthily distributed. <strong>David Nguyen leads at 1,5 M€</strong>, with <strong>Rachel
+            Thornton close behind at 1,25 M€</strong> — so the top of the team isn't a single dependency but a two-person
+          anchor. A second strong tier (Kevin, Marcus, Maria, James, Sarah) all clear 800 K€ each, showing the playbook
           scales across at least seven reps rather than resting on any one performer. The bottom three (Emily, Camille,
           Raj) are the three most recent hires — all joined within the last 18 months — so the tail likely reflects ramp
           time, not ability. The real question for leadership: when those three reach full ramp, can the business
@@ -735,12 +732,12 @@ ORDER BY r.total_revenue DESC;
         segmentation the business can act on directly.</p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p>The team's top-line leader, <strong>David Nguyen, is a classic "volume discounter"</strong> — $1.5M in
-          revenue, but at an average 8.9% discount. The revenue is real, but so is the margin cost. The rep worth
+        <p>The team's top-line leader, <strong>David Nguyen, is a classic "volume discounter"</strong> — 1,5 M€ in
+          revenue, but at an average 8,9% discount. The revenue is real, but so is the margin cost. The rep worth
           studying is <strong>Anika Patel</strong>: fewer deals, but the <strong>lowest average discount on the team at
-            0.5%</strong> while still posting meaningful revenue. She's the textbook "value seller" — winning on
+            0,5%</strong> while still posting meaningful revenue. She's the textbook "value seller" — winning on
           positioning, not price. <strong>Kevin Okafor</strong> and <strong>Maria Gonzalez</strong> are also worth
-          calling out: both clear $900K+ at under 3% average discount, suggesting the value-selling motion scales beyond
+          calling out: both clear 900 K€+ at under 3% average discount, suggesting the value-selling motion scales beyond
           any single top performer. The operational question is whether their playbook can be codified and taught to the
           volume discounters to lift team-wide margin without sacrificing top-line revenue.</p>
       </div>
@@ -818,7 +815,7 @@ ORDER BY
       </p>
       <div class="insight">
         <span class="insight-label">Key insight</span>
-        <p><strong>39% of historical revenue sits in At-Risk or Dormant accounts</strong> — roughly $3.5M of lifetime
+        <p><strong>39% of historical revenue sits in At-Risk or Dormant accounts</strong> — roughly 3,5 M€ of lifetime
           revenue tied to 172 customers who haven't transacted in more than six months. That's a significant but
           actionable number: these are customers the business has already proven it can win, meaning the CAC is already
           paid, and even a modest win-back rate would compound directly to the bottom line. The top of the at-risk list
@@ -864,20 +861,7 @@ SELECT
   total_revenue,
   ROUND(total_revenue / SUM(total_revenue) OVER () * 100, 1) AS pct_of_total
 FROM category_revenue
-ORDER BY total_revenue DESC;
-
--- ----------------------------------------------------------------------
--- Raw Metabase GUI version preserved for reference.
--- The original returned only category + revenue; the version above adds
--- each category's share of total revenue via SUM(...) OVER ().
--- ----------------------------------------------------------------------
--- SELECT category, total_revenue FROM (
---   SELECT `products__via__product_id`.`category` AS category,
---          SUM(`Order Items - Order`.`quantity` *
---              `Order Items - Order`.`unit_price` *
---              (1 - `Order Items - Order`.`discount_pct` / 100)) AS total_revenue
---   FROM `orders` ... GROUP BY `products__via__product_id`.`category`
--- ) aggregated ORDER BY total_revenue DESC;</code></pre>
+ORDER BY total_revenue DESC;</code></pre>
       </div>
     </div>
     <div class="text-col">
